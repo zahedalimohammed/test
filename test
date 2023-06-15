@@ -44,3 +44,4 @@ public class S3DownloadService {
         // ...
     }
 }
+This code sets up an S3Client object, which represents the AWS S3 service. The downloadFile method takes the name of the S3 bucket and the object key as parameters. It creates a GetObjectRequest with the specified bucket name and object key, and then calls s3Client.getObject() to initiate the download. Finally, it returns the ResponseInputStream containing the downloaded file data.
