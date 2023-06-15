@@ -1,1 +1,46 @@
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.core.ResponseInputStream;
 
+public class S3DownloadService {
+
+    private S3Client s3Client;
+
+    public S3DownloadService() {
+        // Initialize the S3 client
+        this.s3Client = S3Client.create();
+    }
+
+    public ResponseInputStream<GetObjectResponse> downloadFile(String bucketName, String objectKey) {
+        try {
+            // Create the request to download the file
+            GetObjectRequest request = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .build();
+
+            // Initiate the download and retrieve the response
+            GetObjectResponse response = s3Client.getObject(request);
+
+            // Return the input stream for the downloaded file
+            return response.responseInputStream();
+        } catch (S3Exception e) {
+            // Handle any exceptions
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static void main(String[] args) {
+        // Example usage
+        S3DownloadService downloadService = new S3DownloadService();
+        String bucketName = "your-bucket-name";
+        String objectKey = "your-object-key";
+        ResponseInputStream<GetObjectResponse> inputStream = downloadService.downloadFile(bucketName, objectKey);
+
+        // Process the downloaded file stream as needed
+        // ...
+    }
+}
