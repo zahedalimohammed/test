@@ -47,7 +47,7 @@ public class S3DownloadService {
 This code sets up an S3Client object, which represents the AWS S3 service. The downloadFile method takes the name of the S3 bucket and the object key as parameters. It creates a GetObjectRequest with the specified bucket name and object key, and then calls s3Client.getObject() to initiate the download. Finally, it returns the ResponseInputStream containing the downloaded file data.
 
 
-file extraction:
+******file extraction:
 
 For extracting large data sets, using an external 3rd party library can provide better performance and speed compared to the standard java.util.zip package. One such popular library is Apache Commons Compress, which offers enhanced features and optimizations for working with zip files. Here's an example Java code that uses Apache Commons Compress for faster unzipping of large data sets:
 
@@ -111,3 +111,47 @@ In this code, we use the ZipArchiveInputStream class from Apache Commons Compres
 To use Apache Commons Compress, you'll need to include the library as a dependency in your project. You can download the library from the Apache Commons Compress website (https://commons.apache.org/proper/commons-compress/) or use a build tool like Maven or Gradle to manage the dependency.
 
 Using an external library like Apache Commons Compress can significantly improve the speed of extracting large data sets from zip files.
+
+
+******root file count and identifying encrypted files
+
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.EncryptedFileFilter;
+
+import java.io.File;
+import java.io.IOException;
+
+public class FileAnalyzer {
+
+    public static void analyzeDirectory(String directoryPath) {
+        File directory = new File(directoryPath);
+
+        // Get the count of root files
+        int rootFileCount = FileUtils.listFiles(directory, null, false).size();
+        System.out.println("Root file count: " + rootFileCount);
+
+        // Identify encrypted files
+        File[] encryptedFiles = directory.listFiles(EncryptedFileFilter.INSTANCE);
+        if (encryptedFiles != null && encryptedFiles.length > 0) {
+            System.out.println("Encrypted files:");
+            for (File encryptedFile : encryptedFiles) {
+                System.out.println(encryptedFile.getAbsolutePath());
+            }
+        } else {
+            System.out.println("No encrypted files found.");
+        }
+    }
+
+    public static void main(String[] args) {
+        // Example usage
+        String directoryPath = "path/to/your/directory";
+        analyzeDirectory(directoryPath);
+    }
+}
+
+Desc: For finding the root file count and identifying encrypted files in a directory containing large data sets, using an external library can provide more efficient and optimized functionality. Apache Commons IO is a popular library that offers enhanced features for file and directory operations. 
+In this code, we use the FileUtils class from Apache Commons IO to perform the directory analysis. The listFiles method is used to retrieve all the files in the specified directory. We pass null as the file filter to include all files, and false to exclude subdirectories.
+
+To identify encrypted files, we utilize the EncryptedFileFilter from Apache Commons IO. This filter detects encrypted files based on file extensions and magic numbers. We retrieve an array of encrypted files using the listFiles method and the EncryptedFileFilter.INSTANCE filter. We then iterate over the array and print the absolute path of each encrypted file.
+
+To use Apache Commons IO, you need to include the library as a dependency in your project. You can download the library from the Apache Commons IO website (https://commons.apache.org/proper/commons-io/) or use a build tool like Maven or Gradle to manage the dependency.
