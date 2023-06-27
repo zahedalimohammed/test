@@ -291,9 +291,13 @@ import java.io.IOException;
 
 public class FileExtractor {
     public static void main(String[] args) {
-        String zipFilePath = "path/to/your/archive.zip";
+        String zipFilePath = "path/to/your/Data.zip";
         String outputDirPath = "path/to/output/directory";
 
+        extractFilesFromZip(zipFilePath, outputDirPath);
+    }
+
+    private static void extractFilesFromZip(String zipFilePath, String outputDirPath) {
         try (ZipArchiveInputStream zipInputStream = new ZipArchiveInputStream(new FileInputStream(zipFilePath))) {
             ArchiveEntry entry;
             while ((entry = zipInputStream.getNextEntry()) != null) {
@@ -310,6 +314,12 @@ public class FileExtractor {
                         while ((bytesRead = zipInputStream.read(buffer)) != -1) {
                             outputStream.write(buffer, 0, bytesRead);
                         }
+                    }
+
+                    if (entryName.endsWith(".zip")) {
+                        String subZipFilePath = new File(outputDirPath, entryName).getPath();
+                        String subOutputDirPath = new File(outputDirPath, entryName.substring(0, entryName.length() - 4)).getPath();
+                        extractFilesFromZip(subZipFilePath, subOutputDirPath);
                     }
                 }
             }
