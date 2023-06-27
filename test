@@ -277,3 +277,43 @@ In this code, the analyzeDirectory method takes the directory path as a paramete
 The getEmailParentCount method uses the "pstsdk" library to parse the PST file specified by the filePath. It opens the PST file, retrieves the root folder, and passes it to the countEmailParents method.
 
 The countEmailParents method recursively traverses the PST folder hierarchy and checks if a folder is either of type FOLDER_SEARCH or FOLDER_NORMAL. For such folders, it continues recursively into subfolders. If a folder is of type FOLDER_SENTMAIL or FOLDER_INBOX, it increments the count by the content count of that folder (which represents the email parent count).
+
+
+****************££££
+
+import org.apache.commons.compress.archivers.ArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
+public class FileExtractor {
+    public static void main(String[] args) {
+        String zipFilePath = "path/to/your/archive.zip";
+        String outputDirPath = "path/to/output/directory";
+
+        try (ZipArchiveInputStream zipInputStream = new ZipArchiveInputStream(new FileInputStream(zipFilePath))) {
+            ArchiveEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                if (!entry.isDirectory()) {
+                    File outputFile = new File(outputDirPath, entry.getName());
+                    File parentDir = outputFile.getParentFile();
+                    if (!parentDir.exists())
+                        parentDir.mkdirs();
+
+                    try (FileOutputStream outputStream = new FileOutputStream(outputFile)) {
+                        byte[] buffer = new byte[8192];
+                        int bytesRead;
+                        while ((bytesRead = zipInputStream.read(buffer)) != -1) {
+                            outputStream.write(buffer, 0, bytesRead);
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
