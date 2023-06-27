@@ -310,6 +310,10 @@ public class FileExtractor {
                             outputStream.write(buffer, 0, bytesRead);
                         }
                     }
+                } else {
+                    File dir = new File(outputDirPath, entry.getName());
+                    if (!dir.exists())
+                        dir.mkdirs();
                 }
             }
         } catch (IOException e) {
