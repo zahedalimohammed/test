@@ -328,3 +328,43 @@ public class FileExtractor {
         }
     }
 }
+
+
+******* file Search for encrypted files: 
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.stream.Stream;
+
+public class FileSearcher {
+    private static int rootFileCount = 0;
+    private static int encryptedFileCount = 0;
+
+    public static void main(String[] args) {
+        String directoryPath = "path_to_directory"; // Replace with your directory path
+
+        try (Stream<Path> paths = Files.walk(Paths.get(directoryPath))) {
+            paths.filter(Files::isRegularFile)
+                    .forEach(FileSearcher::processFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println("Root File Count: " + rootFileCount);
+        System.out.println("Encrypted File Count: " + encryptedFileCount);
+    }
+
+    private static void processFile(Path file) {
+        rootFileCount++;
+        if (isFileEncrypted(file)) {
+            encryptedFileCount++;
+        }
+    }
+
+    private static boolean isFileEncrypted(Path file) {
+        // Add your logic here to determine if the file is encrypted
+        // You can check file extensions, file content, or other criteria
+        return false; // Replace with your encryption check logic
+    }
+}
