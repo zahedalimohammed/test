@@ -298,7 +298,8 @@ public class FileExtractor {
             ArchiveEntry entry;
             while ((entry = zipInputStream.getNextEntry()) != null) {
                 if (!entry.isDirectory()) {
-                    File outputFile = new File(outputDirPath, entry.getName());
+                    String entryName = entry.getName();
+                    File outputFile = new File(outputDirPath, entryName);
                     File parentDir = outputFile.getParentFile();
                     if (!parentDir.exists())
                         parentDir.mkdirs();
@@ -310,10 +311,6 @@ public class FileExtractor {
                             outputStream.write(buffer, 0, bytesRead);
                         }
                     }
-                } else {
-                    File dir = new File(outputDirPath, entry.getName());
-                    if (!dir.exists())
-                        dir.mkdirs();
                 }
             }
         } catch (IOException e) {
