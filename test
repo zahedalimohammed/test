@@ -368,3 +368,68 @@ public class FileSearcher {
         return false; // Replace with your encryption check logic
     }
 }
+
+******PST Updated
+
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+import org.apache.poi.poifs.filesystem.DirectoryEntry;
+import org.apache.poi.poifs.filesystem.Entry;
+import org.apache.poi.poifs.filesystem.DocumentEntry;
+import org.apache.poi.hsmf.MAPIMessage;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+
+public class DirectoryAnalyzer {
+
+    private static int fileCount = 0;
+    private static int pstFileCount = 0;
+    private static int emailParentCount = 0;
+
+    public static void main(String[] args) {
+        String directoryPath = "path/to/your/directory";
+        analyzeDirectory(directoryPath);
+
+        System.out.println("File count: " + fileCount);
+        System.out.println("PST file count: " + pstFileCount);
+        System.out.println("Email parent count: " + emailParentCount);
+    }
+
+    public static void analyzeDirectory(String directoryPath) {
+        File directory = new File(directoryPath);
+        if (directory.exists() && directory.isDirectory()) {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile()) {
+                        fileCount++;
+                        if (file.getName().toLowerCase().endsWith(".pst")) {
+                            pstFileCount++;
+                            emailParentCount += getEmailParentCount(file);
+                        }
+                    } else if (file.isDirectory()) {
+                        analyzeDirectory(file.getAbsolutePath());
+                    }
+                }
+            }
+        }
+    }
+
+    private static int getEmailParentCount(File pstFile) {
+        try (FileInputStream fis = new FileInputStream(pstFile);
+             POIFSFileSystem fs = new POIFSFileSystem(fis);
+             DirectoryEntry root = fs.getRoot()) {
+
+            Entry entry = root.getEntry("Top of Personal Folders");
+            if (entry instanceof DocumentEntry) {
+                DocumentEntry documentEntry = (DocumentEntry) entry;
+                MAPIMessage msg = new MAPIMessage(documentEntry);
+                return msg.getAttachmentFiles().size();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+}
