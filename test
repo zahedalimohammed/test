@@ -435,6 +435,7 @@ public class DirectoryAnalyzer {
 }
 
 reading PST count
+
 import org.apache.poi.hmef.HMEFMessage;
 import org.apache.poi.hmef.attribute.MAPIRtfAttribute;
 import org.apache.poi.hmef.attribute.MAPIStringAttribute;
@@ -445,8 +446,10 @@ import org.apache.poi.hmef.extractor.HMEFContentsExtractor;
 import org.apache.poi.hmef.extractor.MAPIMessage;
 import org.apache.poi.poifs.filesystem.POIFSFileSystem;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 public class EmailParentCountCalculator {
     public static void main(String[] args) {
@@ -458,7 +461,11 @@ public class EmailParentCountCalculator {
     private static int calculateParentCount(String pstFilePath) {
         try (FileInputStream fis = new FileInputStream(pstFilePath);
              POIFSFileSystem fs = new POIFSFileSystem(fis)) {
-            HMEFContentsExtractor extractor = new HMEFContentsExtractor(fs);
+            byte[] data = new byte[fs.getFileSystem().getLength()];
+            fs.getFileSystem().read(0, data);
+            InputStream inputStream = new ByteArrayInputStream(data);
+            
+            HMEFContentsExtractor extractor = new HMEFContentsExtractor(inputStream);
             MAPIMessage msg = extractor.openMessage();
             return getParentEmailCount(msg);
         } catch (IOException e) {
