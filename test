@@ -433,3 +433,53 @@ public class DirectoryAnalyzer {
         return 0;
     }
 }
+
+reading PST count
+import org.apache.poi.hmef.HMEFMessage;
+import org.apache.poi.hmef.attribute.MAPIRtfAttribute;
+import org.apache.poi.hmef.attribute.MAPIStringAttribute;
+import org.apache.poi.hmef.attribute.TNEFAttribute;
+import org.apache.poi.hmef.attribute.TNEFProperty;
+import org.apache.poi.hmef.attribute.TNEFPropertySet;
+import org.apache.poi.hmef.extractor.HMEFContentsExtractor;
+import org.apache.poi.hmef.extractor.MAPIMessage;
+import org.apache.poi.poifs.filesystem.POIFSFileSystem;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+
+public class EmailParentCountCalculator {
+    public static void main(String[] args) {
+        String pstFilePath = "path_to_your_pst_file.pst";
+        int parentCount = calculateParentCount(pstFilePath);
+        System.out.println("Parent Email Count: " + parentCount);
+    }
+
+    private static int calculateParentCount(String pstFilePath) {
+        try (FileInputStream fis = new FileInputStream(pstFilePath);
+             POIFSFileSystem fs = new POIFSFileSystem(fis)) {
+            HMEFContentsExtractor extractor = new HMEFContentsExtractor(fs);
+            MAPIMessage msg = extractor.openMessage();
+            return getParentEmailCount(msg);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return 0;
+    }
+
+    private static int getParentEmailCount(MAPIMessage msg) {
+        int count = 0;
+        TNEFAttribute attr = msg.getMainTNEFAttribute(TNEFProperty.ID_ATTACH_DATA);
+        if (attr instanceof TNEFPropertySet) {
+            TNEFPropertySet propSet = (TNEFPropertySet) attr;
+            for (TNEFProperty prop : propSet) {
+                if (prop.getName().equals("MessageClass")) {
+                    if (prop.getValue().equals("IPM.Note")) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+}
