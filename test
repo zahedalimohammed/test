@@ -436,6 +436,40 @@ public class DirectoryAnalyzer {
 
 reading PST count
 
+
+import com.pff.PSTFile;
+import com.pff.PSTFolder;
+import com.pff.PSTObject;
+
+public class PSTReader {
+    public static void main(String[] args) {
+        String pstFilePath = "path/to/your.pst";
+        
+        try {
+            PSTFile pstFile = new PSTFile(pstFilePath);
+            PSTFolder rootFolder = pstFile.getRootFolder();
+            int rootParentCount = countRootParents(rootFolder);
+            
+            System.out.println("Root Parent Count: " + rootParentCount);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private static int countRootParents(PSTFolder folder) throws Exception {
+        int count = 0;
+        
+        for (PSTObject child : folder.getChildren()) {
+            if (child instanceof PSTFolder) {
+                PSTFolder subFolder = (PSTFolder) child;
+                count += countRootParents(subFolder);
+            }
+        }
+        
+        return count + 1; // Adding 1 for the root folder itself
+    }
+}
+
 import org.apache.poi.hmef.HMEFMessage;
 import org.apache.poi.hmef.attribute.MAPIRtfAttribute;
 import org.apache.poi.hmef.attribute.MAPIStringAttribute;
