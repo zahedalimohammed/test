@@ -1,3 +1,33 @@
+
+import javax.net.ssl.*;
+import java.security.SecureRandom;
+import java.security.Security;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+
+public class YourClass {
+
+    public void doTrustToCertificates() throws Exception {
+        TrustManager[] trustAllCerts = { (X509TrustManager) (X509Certificate[] certs, String authType) -> {} };
+
+        SSLContext sc = SSLContext.getInstance("SSL");
+        sc.init(null, trustAllCerts, new SecureRandom());
+
+        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+
+        HostnameVerifier hv = (String urlHostName, SSLSession session) -> {
+            if (!urlHostName.equalsIgnoreCase(session.getPeerHost())) {
+                System.out.println("Warning: URL host '" + urlHostName + "' is different from SSLSession host '"
+                        + session.getPeerHost() + "'.");
+            }
+            return true;
+        };
+
+        HttpsURLConnection.setDefaultHostnameVerifier(hv);
+    }
+}
+
+
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
