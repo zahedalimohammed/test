@@ -1,4 +1,45 @@
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 
+public class LogFileSearcher {
+
+    public static void main(String[] args) {
+        // Path to the log file
+        String logFilePath = "c:\\ProgramData\\McAfee\\Endpoint Security\\Logs\\OnAccessScan_Activity.log";
+        
+        // Path to the output file
+        String outputFilePath = "c:\\ProgramData\\McAfee\\Endpoint Security\\Logs\\filtered_log.txt";
+        
+        // String to search for in each line
+        String searchString = "caseID";
+
+        // Try-with-resources statement to ensure resources are closed automatically
+        try (BufferedReader br = new BufferedReader(new FileReader(logFilePath));
+             BufferedWriter bw = new BufferedWriter(new FileWriter(outputFilePath))) {
+
+            String line;
+            // Read the log file line by line
+            while ((line = br.readLine()) != null) {
+                // Check if the line contains the search string
+                if (line.contains(searchString)) {
+                    // Write the matching line to the output file
+                    bw.write(line);
+                    bw.newLine();
+                }
+            }
+
+            // Print a completion message
+            System.out.println("Search completed and matching lines have been saved to " + outputFilePath);
+
+        } catch (IOException e) {
+            // Print stack trace if an I/O error occurs
+            e.printStackTrace();
+        }
+    }
+}
 import javax.net.ssl.*;
 import java.security.SecureRandom;
 import java.security.Security;
