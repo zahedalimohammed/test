@@ -1,0 +1,257 @@
+use File::Find;
+use strict;
+use warnings;
+use Win32;
+use Cwd;
+use File::Spec::Win32;
+
+# Check the number of arguments
+my $num_args = $#ARGV + 1;
+if ($num_args < 7) {
+    print "\nUsage: 03_StageEmail.pl DriveWorking stagingLocation matter_id matter_name response_date (YYYY-mm-dd) project_id virus_scan_enabled\n";
+    exit 2;
+}
+
+# Assign command-line arguments to variables
+my $sDrive = $ARGV[0];
+our $sLoc = $ARGV[1];
+my $matterID = $ARGV[2];
+my $matterName = $ARGV[3];
+my $prodDate = $ARGV[4];
+my $projId = $ARGV[5];
+my $virus_scan_enabled_str = $ARGV[6]; # String input for virus scan enabled
+
+# Convert virus_scan_enabled to boolean
+my $virus_scan_enabled = ($virus_scan_enabled_str =~ /^(true|1|yes)$/i) ? 1 : 0;
+
+# Set up working and staging directories
+our $currDir = "$sDrive\\$matterID\-$matterName\\$prodDate\\$projId\\_working";
+chdir("$currDir") or die "Cannot change directory to $currDir: $!";
+
+$sLoc = File::Spec->catdir($currDir, "Staged");
+$currDir =~ s/\//\\/g;
+
+# Split path parts and assign matter ID and response date
+my @pathParts = split(/\\/, $currDir);
+$matterID = substr($pathParts[2], 0, 11);
+my $respDate = $pathParts[3];
+
+# Define folders and temporary files
+my $eFolder = "$currDir";
+$eFolder =~ s/_working/Extracted/;
+my $mFolder = "$currDir";
+$mFolder =~ s/_working/MSG/;
+my $pFolder = "$currDir";
+$pFolder =~ s/_working/PST/;
+
+my $tmdNSF = "$currDir\\03_NSF.tmd";
+my $tmdMBOX = "$currDir\\03_MBOX.tmd";
+my $tmdDBX = "$currDir\\03_DBX.tmd";
+my $warnFile = "$currDir\\04_MSGWarning.txt";
+
+our $conExclude = "";
+our %conSuppress = ();
+our $msgExclude = "";
+our %msgSuppress = ();
+our %msgInclude = ();
+
+# Get a list of all email containers, creating the hash that will track which containers have viruses
+my $allFile = "$currDir\\03_extracted_FullDirectory.txt";
+open(my $ALL, "<", $allFile) or die "Cannot open $allFile: $!";
+my %mailList = ();
+while (my $iLine = <$ALL>) {
+    chomp($iLine);
+    if ($iLine =~ m/\.(nst$|mbox$|dbx$|pst$)/i) {
+        $mailList{$iLine} = 0;
+    }
+}
+close($ALL);
+
+# Scan the MAPI errors file to compile a list of processed PSTs and their associated MSG folders
+our %pstList = ();
+our %msgList = ();
+my $pst = "";
+my $mErrFile = "$currDir\\04_AllMapiErrors.txt";
+if (-e($mErrFile)) {
+    open(MERR, "<", $mErrFile) or die "Cannot open $mErrFile: $!";
+    while (my $iLine = <MERR>) {
+        chomp($iLine);
+        if ($iLine =~ m/^PST: /) {
+            $pst = substr($iLine, 5);
+        } elsif ($iLine =~ m/^MSG: /) {
+            $pstList{substr($iLine, 5)} = $pst;
+            $msgList{$pst} = substr($iLine, 5);
+        }
+    }
+    close(MERR);
+}
+
+our $nsfCount = 0;
+# Update hashes for non-PSTs, keeping track of how many NSFs there are
+if (-e($tmdNSF)) {
+    $nsfCount = ProcTMD($tmdNSF);
+}
+if (-e($tmdMBOX)) {
+    ProcTMD($tmdMBOX);
+}
+if (-e($tmdDBX)) {
+    ProcTMD($tmdDBX);
+}
+
+# Creates a global array of MSG paths created from PSTs processed by MAPITool
+our @mPaths = sort(keys(%pstList));
+
+# Function to process TMD files
+sub ProcTMD {
+    my ($file) = @_;
+    open(my $FH, "<", $file) or die "Cannot open $file: $!";
+    my $count = 0;
+    while (my $line = <$FH>) {
+        chomp($line);
+        if ($line) {
+            $count++;
+        }
+    }
+    close($FH);
+    return $count;
+}
+
+# Additional logic for processing mail containers and handling virus scans would go here
+
+if (scalar(keys(%mailList)) > 0) {
+    my @containers = sort(keys(%mailList));
+    my $cleanFile = "$currDir\\06_MailContainerCopy.bat";
+    if (-e("$cleanFile\_run")) {
+        unlink("$cleanFile\_run");
+    }
+    my $dirtyFile = "$currDir\\06_MSG-DirtyContainerCopy.bat";
+    if (-e("$dirtyFile\_run")) {
+        unlink("$dirtyFile\_run");
+    }
+    my $infectedList = "$currDir\\05_InfectedMailContainers.txt";
+    my $vLog = "$currDir\\05_VirusScan.log";
+    my $sCopyLog = "$currDir\\06_Email-Staging.log";
+    my $done = 0;
+    my $lastLine = "";
+    my $notCompletedNotHalted = 1;
+
+    if ($virus_scan_enabled) {
+        # Loop to check if virus scan is completed
+        while ($done == 0) {
+            if (rename("05_VirusScan.log", "05_VirusScan.log_tmp")) {
+                $done = 1;
+                rename("05_VirusScan.log_tmp", "05_VirusScan.log");
+                open(VLOG, '<:encoding(UTF-8)', "$vLog") or die "Cannot open $vLog: $!";
+                readline(VLOG); # Ignore BOM line
+                while (my $iLine = <VLOG>) {
+                    chomp($iLine);
+                    if ($iLine =~ m/Summary Report on E:/) {
+                        close(VLOG);
+                        open(VLOG, '<:encoding(UTF-8)', "$vLog") or die "Cannot open $vLog: $!";
+                        print "Virus scan is complete!\n";
+                        open(SLOG, ">", $sCopyLog) or die "Cannot open $sCopyLog: $!";
+                        close(SLOG);
+                        open(CFILE, ">", $cleanFile) or die "Cannot open $cleanFile: $!";
+                        open(DFILE, ">", $dirtyFile) or die "Cannot open $dirtyFile: $!";
+                        open(IFILE, ">", $infectedList) or die "Cannot open $infectedList: $!";
+                        $notCompletedNotHalted = 0;
+                        last;
+                    } elsif ($iLine =~ m/^Execution halted/) {
+                        $notCompletedNotHalted = 0;
+                        close(VLOG);
+                        print "Virus scan was terminated. Please ensure a complete scan is run before staging this data...! \n";
+                        system("pause");
+                        exit 12;
+                    }
+                }
+                if ($notCompletedNotHalted == 1) {
+                    die("Invalid log file processed...!\n");
+                } else {
+                    sleep(5);
+                }
+            }
+        }
+    }
+
+    my $errLine = "";
+    my $container = "";
+    my $partCount = 0;
+    my $match = 0;
+    my $i = 0;
+    my @lineParts = ();
+    my $hasVirus = 0;
+    my $errPath = "";
+
+    if ($virus_scan_enabled) {
+        readline(VLOG); # Ignore BOM line
+        while (my $iLine = <VLOG>) {
+            chomp($iLine);
+            if ($iLine ne "") {
+                @lineParts = split('...', $iLine);
+                if ($iLine =~ m/The file has been deleted./) {
+                    $hasVirus = 1;
+                    $match = 0;
+                    $errLine = $lineParts[0];
+                    $errPath = FindMatch($errLine);
+                    if ($errPath ne "") {
+                        $mailList{$pstList{$errPath}} += 1;
+                    } else {
+                        $mailList{"Loose Files"} += 1;
+                    }
+                }
+            }
+        }
+        close(VLOG);
+    }
+
+    my $rSwitches = "";
+    my $conTotal = 0;
+    my $msgTotal = 0;
+    my $virTotal = 0;
+
+    if (-e ($warnFile)) {
+        GetExclusions($warnFile);
+    }
+
+    if ($hasVirus == 1) {
+        print IFILE "Infected Container\tNumber of infected objects\n";
+        foreach my $container (@containers) {
+            if ($mailList{$container} > 0) {
+                print IFILE "$container\t" . $mailList{$container} . "\n";
+                $conTotal += 1;
+                $virTotal += $mailList{$container};
+            }
+        }
+        close(IFILE);
+    }
+    close(CFILE);
+    close(DFILE);
+}
+
+# Function to find match in the directory
+sub FindMatch {
+    my ($errLine) = @_;
+    foreach my $path (@mPaths) {
+        if ($errLine =~ m/\Q$path\E/) {
+            return $path;
+        }
+    }
+    return "";
+}
+
+# Function to get exclusions from the warning file
+sub GetExclusions {
+    my ($warnFile) = @_;
+    open(my $WARN, "<", $warnFile) or die "Cannot open $warnFile: $!";
+    while (my $line = <$WARN>) {
+        chomp($line);
+        if ($line =~ m/^EXCLUDE: /) {
+            my $excludePath = substr($line, 9);
+            $conExclude .= "$excludePath ";
+        } elsif ($line =~ m/^SUPPRESS: /) {
+            my $suppressPath = substr($line, 10);
+            $conSuppress{$suppressPath} = 1;
+        }
+    }
+    close($WARN);
+}
