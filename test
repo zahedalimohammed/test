@@ -1,3 +1,145 @@
+package org.finra.cpu.utilities.proj.service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.finra.cpu.utilities.model.Constants;
+import org.finra.cpu.utilities.model.PSTCountResponse;
+import org.finra.cpu.utilities.model.Project;
+import org.finra.cpu.utilities.model.ProjectNextProcess;
+import org.finra.cpu.utilities.service.FileService;
+import org.finra.cpu.utilities.service.PathHelper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.io.File;
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class ProjectServiceImplTest {
+
+    @Mock
+    private FileService fileService;
+
+    @InjectMocks
+    private ProjectServiceImpl projectService;
+
+    private Project project;
+    private ProjectNextProcess projectNextProcess;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        project = new Project(); // Initialize with dummy values as necessary
+        project.setMatterID("123");
+        project.setProjectID("456");
+        project.setResponseDate("2024-10-15");
+
+        projectNextProcess = new ProjectNextProcess();
+        projectNextProcess.setNextProcess("SampleProcess");
+        projectNextProcess.setProject(project);
+    }
+
+    @Test
+    void testGetLogs_FileExists() {
+        String logPath = "/some/path/log.txt";
+        File mockFile = mock(File.class);
+
+        when(mockFile.exists()).thenReturn(true);
+        when(PathHelper.getLogPath(project)).thenReturn(logPath);
+        when(fileService.readLogFile(mockFile)).thenReturn("Sample logs");
+
+        String logs = projectService.getlogs(project);
+
+        assertEquals("Sample logs", logs);
+        verify(fileService).readLogFile(mockFile);
+    }
+
+    @Test
+    void testGetLogs_FileNotExists() {
+        String logPath = "/some/path/log.txt";
+        File mockFile = mock(File.class);
+
+        when(mockFile.exists()).thenReturn(false);
+        when(PathHelper.getLogPath(project)).thenReturn(logPath);
+
+        String logs = projectService.getlogs(project);
+
+        assertTrue(logs.isEmpty());
+    }
+
+    @Test
+    void testAddProjectFileForStartProcess_Success() throws IOException {
+        String camelInboxPath = "/some/path/Inbox";
+        String fileName = "123 2024-10-15 456.txt";
+        File mockFolder = mock(File.class);
+
+        when(PathHelper.getCamelPath()).thenReturn("/some/path");
+        when(mockFolder.mkdirs()).thenReturn(true);
+        when(mockFolder.exists()).thenReturn(false);
+
+        boolean result = projectService.addProjectFileForStartProcess(project);
+
+        assertTrue(result);
+        verify(fileService, never()).readLogFile(any());
+    }
+
+    @Test
+    void testAddProjectFileForStartProcess_Failure() throws IOException {
+        String camelInboxPath = "/some/path/Inbox";
+        String fileName = "123 2024-10-15 456.txt";
+        File mockFolder = mock(File.class);
+
+        when(PathHelper.getCamelPath()).thenReturn("/some/path");
+        when(mockFolder.mkdirs()).thenReturn(false);
+
+        boolean result = projectService.addProjectFileForStartProcess(project);
+
+        assertFalse(result);
+    }
+
+    @Test
+    void testGetProjectExist_True() {
+        String projectPath = "/some/project/path";
+        File mockFolder = mock(File.class);
+
+        when(PathHelper.getSilverProjectMappedPath(project)).thenReturn(projectPath);
+        when(mockFolder.exists()).thenReturn(true);
+        when(mockFolder.isDirectory()).thenReturn(true);
+
+        boolean exists = projectService.getProjectExist(project);
+
+        assertTrue(exists);
+    }
+
+    @Test
+    void testGetProjectExist_False() {
+        String projectPath = "/some/project/path";
+        File mockFolder = mock(File.class);
+
+        when(PathHelper.getSilverProjectMappedPath(project)).thenReturn(projectPath);
+        when(mockFolder.exists()).thenReturn(false);
+
+        boolean exists = projectService.getProjectExist(project);
+
+        assertFalse(exists);
+    }
+
+    @Test
+    void testGetPSTCount() {
+        when(fileService.getPSTCount(project)).thenReturn(5);
+
+        PSTCountResponse response = projectService.getPSTCount(project);
+
+        assertNotNull(response);
+        assertEquals("5", response.getPstCount());
+    }
+}
+
+
 return false;
 CIVEI.AIIIT
 ocalnost
