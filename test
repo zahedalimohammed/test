@@ -1,3 +1,76 @@
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.api.extension.ExtendWith;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+
+@ExtendWith(MockitoExtension.class)
+public class LogProcessorStatusJobTest {
+
+    @Mock
+    private RestUtil restUtil;
+
+    @InjectMocks
+    private LogProcessorStatusJob logProcessorStatusJob;
+
+    @BeforeEach
+    public void setup() {
+        // Additional setup if necessary
+    }
+
+    @Test
+    public void testLogStatus_Success() throws UnknownHostException {
+        // Arrange
+        Processor processor = new Processor("testComputer", "127.0.0.1");
+        JsonResponse jsonResponse = new JsonResponse("success");
+
+        when(System.getenv("COMPUTERNAME")).thenReturn("testComputer");
+        when(InetAddress.getLocalHost().getHostAddress()).thenReturn("127.0.0.1");
+        when(restUtil.getJsonResponse(any(Processor.class))).thenReturn(jsonResponse);
+
+        // Act
+        logProcessorStatusJob.logStatus();
+
+        // Assert
+        verify(restUtil, times(1)).getJsonResponse(any(Processor.class));
+    }
+
+    @Test
+    public void testLogStatus_Failure() throws UnknownHostException {
+        // Arrange
+        Processor processor = new Processor("testComputer", "127.0.0.1");
+        JsonResponse jsonResponse = new JsonResponse("error");
+
+        when(System.getenv("COMPUTERNAME")).thenReturn("testComputer");
+        when(InetAddress.getLocalHost().getHostAddress()).thenReturn("127.0.0.1");
+        when(restUtil.getJsonResponse(any(Processor.class))).thenReturn(jsonResponse);
+
+        // Act
+        logProcessorStatusJob.logStatus();
+
+        // Assert
+        verify(restUtil, times(1)).getJsonResponse(any(Processor.class));
+    }
+
+    @Test
+    public void testLogStatus_UnknownHostException() throws UnknownHostException {
+        // Arrange
+        when(System.getenv("COMPUTERNAME")).thenReturn("testComputer");
+        when(InetAddress.getLocalHost()).thenThrow(new UnknownHostException("Host not found"));
+
+        // Act & Assert
+        assertDoesNotThrow(() -> logProcessorStatusJob.logStatus());
+    }
+}
+
+
+
+
 package org.finra.cpu.utilities.proj.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
