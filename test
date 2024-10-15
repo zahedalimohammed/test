@@ -1,3 +1,93 @@
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class ProjectControllerTest {
+
+    @Mock
+    private ProjectService projectService;
+
+    @InjectMocks
+    private ProjectController projectController;
+
+    private MockMvc mockMvc;
+
+    @BeforeEach
+    public void setup() {
+        MockitoAnnotations.initMocks(this);
+        mockMvc = MockMvcBuilders.standaloneSetup(projectController).build();
+    }
+
+    @Test
+    public void testGetLogsSuccess() throws Exception {
+        Project project = new Project();
+        String logs = "Log data";
+
+        when(projectService.getLogs(project)).thenReturn(logs);
+
+        LogsResponse expectedResponse = new LogsResponse();
+        expectedResponse.setStatus("success");
+        expectedResponse.setLogs(logs);
+
+        LogsResponse actualResponse = projectController.getLogs(project);
+        assertEquals("success", actualResponse.getStatus());
+        assertEquals(logs, actualResponse.getLogs());
+
+        verify(projectService).getLogs(project);
+    }
+
+    @Test
+    public void testGetLogsError() throws Exception {
+        Project project = new Project();
+
+        when(projectService.getLogs(project)).thenReturn(null);
+
+        LogsResponse actualResponse = projectController.getLogs(project);
+        assertEquals("error", actualResponse.getStatus());
+        assertEquals(null, actualResponse.getLogs());
+
+        verify(projectService).getLogs(project);
+    }
+
+    @Test
+    public void testStartProcessSuccess() throws Exception {
+        Project project = new Project();
+
+        when(projectService.addProjectFileForStartProcess(project)).thenReturn(true);
+
+        JsonResponse actualResponse = projectController.startProcess(project);
+        assertEquals("success", actualResponse.getStatus());
+
+        verify(projectService).addProjectFileForStartProcess(project);
+    }
+
+    @Test
+    public void testStartProcessError() throws Exception {
+        Project project = new Project();
+
+        when(projectService.addProjectFileForStartProcess(project)).thenReturn(false);
+
+        JsonResponse actualResponse = projectController.startProcess(project);
+        assertEquals("error", actualResponse.getStatus());
+
+        verify(projectService).addProjectFileForStartProcess(project);
+    }
+}
+
+
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
