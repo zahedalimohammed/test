@@ -1,180 +1,46 @@
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
-
-public class ProjectControllerTest {
-
-    @Mock
-    private ProjectService projectService;
-
-    @InjectMocks
-    private ProjectController projectController;
-
-    private MockMvc mockMvc;
-
-    @BeforeEach
-    public void setup() {
-        MockitoAnnotations.initMocks(this);
-        mockMvc = MockMvcBuilders.standaloneSetup(projectController).build();
-    }
-
-    // Test getLogs method (Success)
-    @Test
-    public void testGetLogsSuccess() {
-        Project project = new Project();
-        String logs = "Log data";
-
-        when(projectService.getLogs(project)).thenReturn(logs);
-
-        LogsResponse actualResponse = projectController.getLogs(project);
-        assertEquals("success", actualResponse.getStatus());
-        assertEquals(logs, actualResponse.getLogs());
-
-        verify(projectService).getLogs(project);
-    }
-
-    // Test getLogs method (Error)
-    @Test
-    public void testGetLogsError() {
-        Project project = new Project();
-
-        when(projectService.getLogs(project)).thenReturn(null);
-
-        LogsResponse actualResponse = projectController.getLogs(project);
-        assertEquals("error", actualResponse.getStatus());
-        assertEquals(null, actualResponse.getLogs());
-
-        verify(projectService).getLogs(project);
-    }
-
-    // Test startProcess method (Success)
-    @Test
-    public void testStartProcessSuccess() {
-        Project project = new Project();
-
-        when(projectService.addProjectFileForStartProcess(project)).thenReturn(true);
-
-        JsonResponse actualResponse = projectController.startProcess(project);
-        assertEquals("success", actualResponse.getStatus());
-
-        verify(projectService).addProjectFileForStartProcess(project);
-    }
-
-    // Test startProcess method (Error)
-    @Test
-    public void testStartProcessError() {
-        Project project = new Project();
-
-        when(projectService.addProjectFileForStartProcess(project)).thenReturn(false);
-
-        JsonResponse actualResponse = projectController.startProcess(project);
-        assertEquals("error", actualResponse.getStatus());
-
-        verify(projectService).addProjectFileForStartProcess(project);
-    }
-
-    // Test nextProcess method (Success)
-    @Test
-    public void testNextProcessSuccess() {
-        ProjectNextProcess projectNextProcess = new ProjectNextProcess();
-
-        when(projectService.addProjectFileForNextProcess(projectNextProcess)).thenReturn(true);
-
-        JsonResponse actualResponse = projectController.nextProcess(projectNextProcess);
-        assertEquals("success", actualResponse.getStatus());
-
-        verify(projectService).addProjectFileForNextProcess(projectNextProcess);
-    }
-
-    // Test nextProcess method (Error)
-    @Test
-    public void testNextProcessError() {
-        ProjectNextProcess projectNextProcess = new ProjectNextProcess();
-
-        when(projectService.addProjectFileForNextProcess(projectNextProcess)).thenReturn(false);
-
-        JsonResponse actualResponse = projectController.nextProcess(projectNextProcess);
-        assertEquals("error", actualResponse.getStatus());
-
-        verify(projectService).addProjectFileForNextProcess(projectNextProcess);
-    }
-
-    // Test processPSTs method (Success)
-    @Test
-    public void testProcessPSTsSuccess() {
-        Project project = new Project();
-
-        when(projectService.addProjectFileForProcessPSTs(project)).thenReturn(true);
-
-        JsonResponse actualResponse = projectController.processPSTs(project);
-        assertEquals("success", actualResponse.getStatus());
-
-        verify(projectService).addProjectFileForProcessPSTs(project);
-    }
-
-    // Test processPSTs method (Error)
-    @Test
-    public void testProcessPSTsError() {
-        Project project = new Project();
-
-        when(projectService.addProjectFileForProcessPSTs(project)).thenReturn(false);
-
-        JsonResponse actualResponse = projectController.processPSTs(project);
-        assertEquals("error", actualResponse.getStatus());
-
-        verify(projectService).addProjectFileForProcessPSTs(project);
-    }
-
-    // Test getProjectExist method (Success)
-    @Test
-    public void testGetProjectExistSuccess() {
-        Project project = new Project();
-
-        when(projectService.getProjectExist(project)).thenReturn(true);
-
-        JsonResponse actualResponse = projectController.getProjectExist(project);
-        assertEquals("success", actualResponse.getStatus());
-
-        verify(projectService).getProjectExist(project);
-    }
-
-    // Test getProjectExist method (Error)
-    @Test
-    public void testGetProjectExistError() {
-        Project project = new Project();
-
-        when(projectService.getProjectExist(project)).thenReturn(false);
-
-        JsonResponse actualResponse = projectController.getProjectExist(project);
-        assertEquals("error", actualResponse.getStatus());
-
-        verify(projectService).getProjectExist(project);
-    }
-
-    // Test getPSTCount method
-    @Test
-    public void testGetPSTCount() {
-        Project project = new Project();
-        PSTCountResponse expectedResponse = new PSTCountResponse();
-
-        when(projectService.getPSTCount(project)).thenReturn(expectedResponse);
-
-        PSTCountResponse actualResponse = projectController.getPSTCount(project);
-        assertEquals(expectedResponse, actualResponse);
-
-        verify(projectService).getPSTCount(project);
-    }
-}
-
+return false;
+CIVEI.AIIIT
+ocalnost
+access
+log.2024-09-16.txt
+new 40
+｝
+@Override
+public boolean addProjectFileForProcessPSTs (Project project) i
+ObjectMapper mapper = new ObjectMapper () ;
+try ｛
+String fileName = project. getMatterID() + "" + project.getResponseDate() + ""
++ project. getProjectID() + ".txt";
+String camelPath = PathHelper. getCamelPath () ;
+String camelInboxPath = camelPath + "||" + Constants. PROCESS PROCESS
+PSTS + "||"
++ "Inbox" ;
+File inboxFolder = new File (camelInboxPath) ;
+1f (!inboxFolder.exists()) {
+if (inboxFolder.mkdirs ()) i
+} else {
+logger. error ("Failed to create directory: " + camelInboxPath) ; return false;
+｝
+mapper. writeValue (new File (camelInboxPath, fileName), project) ;
+logger. info (Constants. PROCESS_PROCESS_PSTS + " starts for " + project tostring()) ; return true;
+} catch (IOException e) {
+logger. error ("Error adding camel file for " + Constants. PROCESS _PROCESS_ PSIS + " for
++ project. toString(), e) ;
+return false;
+@Override
+public boolean getProjectExist (Project project) i
+String silverEbsProjectPath = PathHelper. getSilverProjectMappedPath (project) ;
+File silverEbsProjectFolder = new File (silverEbsProjectPath) ;
+if (silverEbsProjectFolder.exists () && silverEbsProjectFolder. isDirectory ()) f
+return true;
+} else 1
+return false;
+@Override
+public PSTCountResponse getPSTCount (Project project) i
+int pstCount = fileService. getPSTCount (project) ;
+PSTCountResponse pstCountResponse = new PSTCountResponse () ;
+pstCountResponse. setPstCount (String. valueOf (pstcount)) ;
+return pstCountResponse;
 
 
 import java.io.BufferedReader;
