@@ -1,5 +1,80 @@
 package org.finra.cpu.service;
 
+import com.amazonaws.services.simpleemail.AmazonSimpleEmailService;
+import com.amazonaws.services.simpleemail.model.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import java.nio.charset.StandardCharsets;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class MailServiceTest {
+
+    @Mock
+    private AmazonSimpleEmailService sesClient;
+
+    @InjectMocks
+    private MailService mailService;
+
+    @BeforeEach
+    void setUp() {
+        mailService.setAmazonSimpleEmailService(sesClient);
+    }
+
+    @Test
+    void testSendEmailSuccess() throws Exception {
+        // Arrange
+        String fromEmail = "from@example.com";
+        String toEmail = "to@example.com";
+        String ccEmail = "cc@example.com";
+        String subject = "Test Subject";
+        String body = "Test Body";
+
+        SendEmailRequest expectedRequest = new SendEmailRequest()
+            .withSource(fromEmail)
+            .withDestination(new Destination().withToAddresses(toEmail).withCcAddresses(ccEmail))
+            .withMessage(new Message()
+                .withSubject(new Content().withCharset(StandardCharsets.UTF_8.toString()).withData(subject))
+                .withBody(new Body().withHtml(new Content().withCharset(StandardCharsets.UTF_8.toString()).withData(body)))
+            );
+
+        // Act
+        mailService.sendEmail(fromEmail, toEmail, ccEmail, subject, body);
+
+        // Assert
+        verify(sesClient, times(1)).sendEmail(refEq(expectedRequest));
+    }
+
+    @Test
+    void testSendEmailFailure() {
+        // Arrange
+        String fromEmail = "from@example.com";
+        String toEmail = "to@example.com";
+        String ccEmail = "cc@example.com";
+        String subject = "Test Subject";
+        String body = "Test Body";
+
+        doThrow(new RuntimeException("Error sending email")).when(sesClient).sendEmail(any(SendEmailRequest.class));
+
+        // Act & Assert
+        try {
+            mailService.sendEmail(fromEmail, toEmail, ccEmail, subject, body);
+        } catch (Exception ex) {
+            // Verify that the error message was printed
+            assertEquals("Error sending email", ex.getMessage());
+        }
+
+        verify(sesClient, times(1)).sendEmail(any(SendEmailRequest.class));
+    }
+}
+
+
+package org.finra.cpu.service;
+
 import org.finra.cpu.model.Instance;
 import org.finra.cpu.repository.InstanceRepository;
 import org.junit.jupiter.api.BeforeEach;
