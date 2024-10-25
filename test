@@ -1,3 +1,52 @@
+package org.finra.cpu.service;
+
+import org.jasypt.encryption.pbe.StandardPBEStringEncryptor;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+class EncryptionServiceTest {
+
+    private EncryptionService encryptionService;
+    private String encryptionPassword;
+
+    @BeforeEach
+    void setUp() {
+        encryptionService = new EncryptionService();
+        encryptionPassword = "testPassword";
+    }
+
+    @Test
+    void testEncryptString() {
+        String originalString = "HelloWorld";
+        String encryptedString = encryptionService.encryptString(originalString, encryptionPassword);
+
+        assertNotNull(encryptedString);
+        assertNotEquals(originalString, encryptedString, "Encrypted string should not match original string");
+    }
+
+    @Test
+    void testDecryptString() {
+        String originalString = "HelloWorld";
+        String encryptedString = encryptionService.encryptString(originalString, encryptionPassword);
+        String decryptedString = encryptionService.decryptString(encryptedString, encryptionPassword);
+
+        assertNotNull(decryptedString);
+        assertEquals(originalString, decryptedString, "Decrypted string should match original string");
+    }
+
+    @Test
+    void testDecryptWithWrongPassword() {
+        String originalString = "HelloWorld";
+        String encryptedString = encryptionService.encryptString(originalString, encryptionPassword);
+        
+        assertThrows(Exception.class, () -> {
+            encryptionService.decryptString(encryptedString, "wrongPassword");
+        }, "Decrypting with wrong password should throw an exception");
+    }
+}
+
+
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
