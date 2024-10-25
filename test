@@ -1,5 +1,65 @@
 package org.finra.cpu.service;
 
+import org.finra.cpu.repository.InstanceRepository;
+import org.finra.cpu.transformer.LookUpTransformer;
+import org.finra.cpu.model.Instance;
+import org.finra.cpu.model.LookUpObject;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class IndexServiceTest {
+
+    @Mock
+    private InstanceRepository instanceRepository;
+
+    @Mock
+    private LookUpTransformer lookUpTransformer;
+
+    @InjectMocks
+    private IndexService indexService;
+
+    @BeforeEach
+    void setUp() {
+        // Setup or initialization can be added here if necessary
+    }
+
+    @Test
+    void testGetHealthyInstance() {
+        // Arrange
+        Instance instance1 = new Instance(1L, true);
+        Instance instance2 = new Instance(2L, true);
+        List<Instance> healthyInstances = Arrays.asList(instance1, instance2);
+
+        LookUpObject lookUpObject1 = new LookUpObject(1L);
+        LookUpObject lookUpObject2 = new LookUpObject(2L);
+
+        when(instanceRepository.findByHealthyTrue()).thenReturn(healthyInstances);
+        when(lookUpTransformer.fromInstanceToLookUp(instance1)).thenReturn(lookUpObject1);
+        when(lookUpTransformer.fromInstanceToLookUp(instance2)).thenReturn(lookUpObject2);
+
+        // Act
+        List<LookUpObject> result = indexService.getHealthyInstance();
+
+        // Assert
+        assertEquals(2, result.size());
+        assertEquals(lookUpObject1, result.get(0));
+        assertEquals(lookUpObject2, result.get(1));
+    }
+}
+
+package org.finra.cpu.service;
+
 import org.jasypt.encryption.pbe.StandardPBEStringEncryptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
