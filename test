@@ -1,3 +1,95 @@
+package org.finra.cpu.service.delegate;
+
+import org.finra.cpu.model.Instance;
+import org.finra.cpu.model.ProjectAssignment;
+import org.finra.cpu.model.ProjectRds;
+import org.finra.cpu.repository.InstanceRepository;
+import org.finra.cpu.repository.ProjectAsgtRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class AssignmentServiceTest {
+
+    @Mock
+    private ProjectAsgtRepository projectAsgmtRepository;
+
+    @Mock
+    private InstanceRepository instanceRepository;
+
+    @InjectMocks
+    private AssignmentService assignmentService;
+
+    private ProjectRds projectRds;
+    private Instance instance;
+
+    @BeforeEach
+    void setUp() {
+        projectRds = new ProjectRds();
+        projectRds.setId(1L);
+
+        instance = new Instance();
+        instance.setId(1L);
+    }
+
+    @Test
+    void testSaveNewProjectAssignmentWhenNoExistingAssignment() {
+        // Arrange
+        when(projectAsgmtRepository.findByInstanceIdAndProjectRdsId(instance.getId(), projectRds.getId()))
+                .thenReturn(Optional.empty());
+
+        // Act
+        assignmentService.saveNewProjectAssignment(projectRds, instance);
+
+        // Assert
+        verify(projectAsgmtRepository, times(1)).save(any(ProjectAssignment.class));
+    }
+
+    @Test
+    void testSaveNewProjectAssignmentWhenExistingAssignmentPresent() {
+        // Arrange
+        ProjectAssignment existingAssignment = new ProjectAssignment();
+        when(projectAsgmtRepository.findByInstanceIdAndProjectRdsId(instance.getId(), projectRds.getId()))
+                .thenReturn(Optional.of(existingAssignment));
+
+        // Act
+        assignmentService.saveNewProjectAssignment(projectRds, instance);
+
+        // Assert
+        verify(existingAssignment, times(1)).setActiveFlag(true);
+        verify(projectAsgmtRepository, times(1)).save(existingAssignment);
+    }
+
+    @Test
+    void testUpdateInstanceCapacity() {
+        // Arrange
+        ProjectAssignment assignment1 = new ProjectAssignment();
+        ProjectAssignment assignment2 = new ProjectAssignment();
+        List<ProjectAssignment> activeAssignments = Arrays.asList(assignment1, assignment2);
+
+        when(projectAsgmtRepository.findByInstanceIdAndActiveFlagTrue(instance.getId()))
+                .thenReturn(activeAssignments);
+
+        // Act
+        assignmentService.updateInstanceCapacity(projectRds, instance);
+
+        // Assert
+        verify(instance, times(1)).setCapacity(activeAssignments.size());
+        verify(instanceRepository, times(1)).save(instance);
+    }
+}
+
+
 package org.finra.cpu.service;
 
 import com.amazonaws.services.simpleemail.AmazonSimpleEmailService;
