@@ -1,3 +1,34 @@
+WITH RankedActions AS (
+    SELECT 
+        ma.mttr_id, 
+        ma.actn_type_id, 
+        lk.long_code, 
+        lk.short_code, 
+        lk.label_dscr, 
+        ma.last_updt_dt, 
+        lk.erd_efctv_dt,
+        ROW_NUMBER() OVER (PARTITION BY ma.mttr_id ORDER BY ma.last_updt_dt DESC) AS rn
+    FROM 
+        mdrepo_matter_domain_v3.mttr_actn ma
+    INNER JOIN 
+        erd_case_mgmt_aplcn.otcm_type_lk lk 
+    ON 
+        ma.actn_type_id = lk.erd_otcm_type_id
+)
+SELECT 
+    mttr_id, 
+    actn_type_id, 
+    long_code, 
+    short_code, 
+    label_dscr, 
+    last_updt_dt, 
+    erd_efctv_dt
+FROM 
+    RankedActions
+WHERE 
+    rn = 1;
+
+
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 
