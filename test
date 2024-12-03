@@ -1,4 +1,92 @@
 import org.finra.cpu.rmdownload.service.ItemDetailsSubscriber;
+import org.finra.cpu.rmdownload.service.RequestManagerCaseService;
+import org.finra.cpu.rmdownload.web.rest.dto.RequestManagerCaseDTO;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.*;
+import org.mockito.junit.MockitoJUnitRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
+
+import static org.mockito.Mockito.*;
+
+@RunWith(MockitoJUnitRunner.class)
+public class ItemDetailsSubscriberTest {
+
+    // Mocking the dependencies
+    @Mock
+    private RequestManagerCaseService requestManagerCaseService;
+
+    @Mock
+    private EventBus itemDetailsEventBus;
+
+    @InjectMocks
+    private ItemDetailsSubscriber itemDetailsSubscriber;
+
+    @Before
+    public void setUp() {
+        // Initialize mocks and inject them into the subscriber
+        MockitoAnnotations.initMocks(this);
+    }
+
+    @Test
+    public void testAccept_validEvent() {
+        // Preparing a sample RequestManagerCaseDTO
+        RequestManagerCaseDTO requestManagerCaseDTO = new RequestManagerCaseDTO();
+        requestManagerCaseDTO.setCaseId("case123");
+        requestManagerCaseDTO.setUserId("user123");
+
+        // Creating a mock RequestManagerCase object
+        RequestManagerCase mockCase = new RequestManagerCase();
+        mockCase.setCaseId("case123");
+
+        // Mocking the behavior of `findOneByCaseId` to return the mock case
+        when(requestManagerCaseService.findOneByCaseId("case123")).thenReturn(Optional.of(mockCase));
+
+        // Call the method being tested
+        itemDetailsSubscriber.accept(new Event<>(requestManagerCaseDTO));
+
+        // Verify that the service's save method was called
+        verify(requestManagerCaseService, times(1)).save(mockCase);
+
+        // Additional verifications or assertions can go here based on your logic
+    }
+
+    @Test
+    public void testAccept_noCaseIdInDTO() {
+        // Preparing a sample RequestManagerCaseDTO with no caseId
+        RequestManagerCaseDTO requestManagerCaseDTO = new RequestManagerCaseDTO();
+        requestManagerCaseDTO.setCaseId(null);  // Simulating a case with no ID
+
+        // Call the method being tested
+        itemDetailsSubscriber.accept(new Event<>(requestManagerCaseDTO));
+
+        // Verify that no interaction occurred with requestManagerCaseService
+        verify(requestManagerCaseService, times(0)).save(any());
+    }
+
+    @Test
+    public void testAccept_caseNotFound() {
+        // Preparing a sample RequestManagerCaseDTO
+        RequestManagerCaseDTO requestManagerCaseDTO = new RequestManagerCaseDTO();
+        requestManagerCaseDTO.setCaseId("case123");
+
+        // Mocking the behavior of `findOneByCaseId` to return an empty Optional
+        when(requestManagerCaseService.findOneByCaseId("case123")).thenReturn(Optional.empty());
+
+        // Call the method being tested
+        itemDetailsSubscriber.accept(new Event<>(requestManagerCaseDTO));
+
+        // Verify that save was still called, but with a new empty case
+        verify(requestManagerCaseService, times(1)).save(any(RequestManagerCase.class));
+    }
+}
+
+
+import org.finra.cpu.rmdownload.service.ItemDetailsSubscriber;
 import org.finra.cpu.rmdownload.web.rest.dto.RequestManagerCaseDTO;
 import org.finra.cpu.rmdownload.web.rest.dto.ItemDTO;
 import org.finra.cpu.rmdownload.service.RequestManagerCaseService;
