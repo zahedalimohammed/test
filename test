@@ -50,21 +50,19 @@ public class FileTransportServiceTest {
         when(mockJob.getRequestManagerCase()).thenReturn(mockRequestManagerCase);
         when(mockRequestManagerCase.getCaseId()).thenReturn("123");
 
-        // Mock the listFiles method for directories
+        // Create mock folders and files for testing
         File[] mockRequestFolders = new File[] { mockRequestFolder };
-        when(mockCaseFolder.listFiles(any(FileFilter.class))).thenReturn(mockRequestFolders);
-
-        // Mock the listFiles method for item zip files
         File[] mockItemZips = new File[] { mockItemZip };
-        when(mockRequestFolder.listFiles(any(FileFilter.class))).thenReturn(mockItemZips);
+
+        // Mock the listFiles for directories
+        when(mockCaseFolder.listFiles((FileFilter) any())).thenReturn(mockRequestFolders);
+
+        // Mock the listFiles for files
+        when(mockRequestFolder.listFiles((FileFilter) any())).thenReturn(mockItemZips);
     }
 
     @Test
     public void testUploadItems() {
-        // Arrange: Set up the mock behavior for the uploadItems method
-        when(mockJob.getRequestManagerCase()).thenReturn(mockRequestManagerCase);
-        when(mockRequestManagerCase.getCaseId()).thenReturn("123");
-
         // Act: Call the method being tested
         fileTransportService.uploadItems(mockJob);
 
