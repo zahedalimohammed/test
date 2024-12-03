@@ -46,7 +46,9 @@ public class CommandTest {
 
         // Use mockStatic to mock ProcessBuilder only in this test case
         try (MockedStatic<ProcessBuilder> mockedProcessBuilderStatic = mockStatic(ProcessBuilder.class)) {
+            // Stubbing ProcessBuilder with specific parameters, using the correct matcher for list
             mockedProcessBuilderStatic.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
+
             when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
             when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
             when(mockProcessBuilder.start()).thenReturn(mockProcess);
@@ -74,7 +76,9 @@ public class CommandTest {
 
         // Use mockStatic to mock ProcessBuilder only in this test case
         try (MockedStatic<ProcessBuilder> mockedProcessBuilderStatic = mockStatic(ProcessBuilder.class)) {
+            // Stubbing ProcessBuilder with specific parameters
             mockedProcessBuilderStatic.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
+
             when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
             when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
             when(mockProcessBuilder.start()).thenReturn(mockProcess);
