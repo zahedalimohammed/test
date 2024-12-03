@@ -18,14 +18,13 @@ import static org.mockito.Mockito.*;
 
 public class CommandTest {
 
-    private MockedStatic<LoggerFactory> mockedLoggerFactory;
     private Logger mockLogger;
 
     @BeforeEach
     public void setUp() {
         // Mocking the logger to intercept log messages
         mockLogger = mock(Logger.class);
-        mockedLoggerFactory = mockStatic(LoggerFactory.class);
+        MockedStatic<LoggerFactory> mockedLoggerFactory = mockStatic(LoggerFactory.class);
         mockedLoggerFactory.when(() -> LoggerFactory.getLogger(Command.class)).thenReturn(mockLogger);
     }
 
@@ -37,7 +36,7 @@ public class CommandTest {
         String processOutput = "Command executed successfully.";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
 
-        // Mocking ProcessBuilder and Process
+        // Use mockStatic to mock ProcessBuilder only in this test case
         try (MockedStatic<ProcessBuilder> mockedProcessBuilderStatic = mockStatic(ProcessBuilder.class)) {
             mockedProcessBuilderStatic.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
             when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
@@ -65,7 +64,7 @@ public class CommandTest {
         String processOutput = "Command failed.";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
 
-        // Mocking ProcessBuilder and Process
+        // Use mockStatic to mock ProcessBuilder only in this test case
         try (MockedStatic<ProcessBuilder> mockedProcessBuilderStatic = mockStatic(ProcessBuilder.class)) {
             mockedProcessBuilderStatic.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
             when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
