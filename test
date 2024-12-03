@@ -1,3 +1,108 @@
+import org.finra.cpu.rmdownload.service.ItemDetailsSubscriber;
+import org.finra.cpu.rmdownload.web.rest.dto.RequestManagerCaseDTO;
+import org.finra.cpu.rmdownload.web.rest.dto.ItemDTO;
+import org.finra.cpu.rmdownload.service.RequestManagerCaseService;
+import org.finra.cpu.rmdownload.service.JobService;
+import org.finra.cpu.rmdownload.service.RequestManagerMailService;
+import org.finra.cpu.rmdownload.service.RestUtil;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.*;
+
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class ItemDetailsSubscriberTest {
+
+    @Mock
+    private RestUtil restUtil;
+    
+    @Mock
+    private RequestManagerCaseService requestManagerCaseService;
+    
+    @Mock
+    private JobService jobService;
+    
+    @Mock
+    private RequestManagerMailService requestManagerMailService;
+    
+    @Mock
+    private Logger mockLogger;
+    
+    @InjectMocks
+    private ItemDetailsSubscriber itemDetailsSubscriber;
+
+    @BeforeEach
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);
+        // Mock the LoggerFactory to return the mocked logger
+        when(LoggerFactory.getLogger(ItemDetailsSubscriber.class)).thenReturn(mockLogger);
+    }
+
+    @Test
+    public void testAcceptValidCaseId() {
+        // Arrange
+        String caseId = "case123";
+        String userId = "user1";
+        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
+        when(mockDTO.getCaseId()).thenReturn(caseId);
+        when(mockDTO.getUserId()).thenReturn(userId);
+        
+        RequestManagerCase mockCase = mock(RequestManagerCase.class);
+        Optional<RequestManagerCase> optionalRequestManagerCase = Optional.of(mockCase);
+        when(requestManagerCaseService.findOneByCaseId(caseId)).thenReturn(optionalRequestManagerCase);
+
+        RequestDTO mockRequestDTO = mock(RequestDTO.class);
+        ItemDTO mockItemDTO = mock(ItemDTO.class);
+        when(mockRequestDTO.getItems()).thenReturn(List.of(mockItemDTO));
+        
+        // Create a mock response from restUtil
+        ItemDetailsResponse mockItemDetailsResponse = mock(ItemDetailsResponse.class);
+        when(restUtil.getItemDetails(caseId, "1")).thenReturn(mockItemDetailsResponse);
+
+        // Act
+        itemDetailsSubscriber.accept(new Event<>(mockDTO));
+
+        // Assert: Verify that the methods are called as expected
+        verify(requestManagerCaseService).save(mockCase);
+        verify(jobService).save(any(Job.class));
+    }
+
+    @Test
+    public void testAcceptEmptyCaseId() {
+        // Arrange
+        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
+        when(mockDTO.getCaseId()).thenReturn("");  // Empty CaseId
+        
+        // Act
+        itemDetailsSubscriber.accept(new Event<>(mockDTO));
+
+        // Assert: Verify that no further processing happens
+        verify(requestManagerCaseService, never()).findOneByCaseId(anyString());
+        verify(jobService, never()).save(any(Job.class));
+    }
+
+    @Test
+    public void testAcceptExceptionHandling() {
+        // Arrange
+        String caseId = "case123";
+        String userId = "user1";
+        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
+        when(mockDTO.getCaseId()).thenReturn(caseId);
+        when(mockDTO.getUserId()).thenReturn(userId);
+
+        when(requestManagerCaseService.findOneByCaseId(caseId)).thenThrow(new RuntimeException("Service Error"));
+
+        // Act
+        itemDetailsSubscriber.accept(new Event<>(mockDTO));
+
+        // Assert: Verify that error logging and failure notification occur
+        verify(mockLogger).error(contains("error while getting case items"));
+        verify(requestManagerMailService).sendDownloadFailureNotification(any(Job.class), eq(mockDTO));
+    }
+}
+
+
 import org.finra.cpu.rmdownload.service.ItemDetailsPublisher;
 import org.finra.cpu.rmdownload.web.rest.dto.RequestManagerCaseDTO;
 import org.junit.jupiter.api.BeforeEach;
