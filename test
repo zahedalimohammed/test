@@ -18,20 +18,15 @@ import static org.mockito.Mockito.*;
 
 public class CommandTest {
 
+    private MockedStatic<LoggerFactory> mockedLoggerFactory;
     private Logger mockLogger;
-    private Command command;
-    private ProcessBuilderFactory mockFactory;
 
     @BeforeEach
     public void setUp() {
+        // Mocking the logger to intercept log messages
         mockLogger = mock(Logger.class);
-        mockFactory = mock(ProcessBuilderFactory.class);
-
-        try (MockedStatic<LoggerFactory> mockedLoggerFactory = mockStatic(LoggerFactory.class)) {
-            mockedLoggerFactory.when(() -> LoggerFactory.getLogger(Command.class)).thenReturn(mockLogger);
-        }
-
-        command = new Command(mockFactory);
+        mockedLoggerFactory = mockStatic(LoggerFactory.class);
+        mockedLoggerFactory.when(() -> LoggerFactory.getLogger(Command.class)).thenReturn(mockLogger);
     }
 
     @Test
@@ -42,21 +37,24 @@ public class CommandTest {
         String processOutput = "Command executed successfully.";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
 
-        when(mockFactory.create(List.of("echo", "Hello"))).thenReturn(mockProcessBuilder);
-        when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
-        when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
-        when(mockProcessBuilder.start()).thenReturn(mockProcess);
+        // Mocking ProcessBuilder and Process
+        try (MockedStatic<ProcessBuilder> mockedProcessBuilderStatic = mockStatic(ProcessBuilder.class)) {
+            mockedProcessBuilderStatic.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.start()).thenReturn(mockProcess);
 
-        when(mockProcess.getInputStream()).thenReturn(inputStream);
-        when(mockProcess.waitFor()).thenReturn(0);
+            when(mockProcess.getInputStream()).thenReturn(inputStream);
+            when(mockProcess.waitFor()).thenReturn(0);
 
-        // Act
-        int exitCode = command.runCommand(List.of("echo", "Hello"), "TestProcess");
+            // Act
+            int exitCode = Command.runCommand(List.of("echo", "Hello"), "TestProcess");
 
-        // Assert
-        assertEquals(0, exitCode);
-        verify(mockLogger).info("Command executed successfully.");
-        verify(mockLogger).info("TestProcess exited with code 0");
+            // Assert
+            assertEquals(0, exitCode);
+            verify(mockLogger).info(processOutput.trim());
+            verify(mockLogger).info("TestProcess exited with code 0");
+        }
     }
 
     @Test
@@ -67,21 +65,24 @@ public class CommandTest {
         String processOutput = "Command failed.";
         ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
 
-        when(mockFactory.create(List.of("nonexistent-command"))).thenReturn(mockProcessBuilder);
-        when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
-        when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
-        when(mockProcessBuilder.start()).thenReturn(mockProcess);
+        // Mocking ProcessBuilder and Process
+        try (MockedStatic<ProcessBuilder> mockedProcessBuilderStatic = mockStatic(ProcessBuilder.class)) {
+            mockedProcessBuilderStatic.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.start()).thenReturn(mockProcess);
 
-        when(mockProcess.getInputStream()).thenReturn(inputStream);
-        when(mockProcess.waitFor()).thenReturn(1);
+            when(mockProcess.getInputStream()).thenReturn(inputStream);
+            when(mockProcess.waitFor()).thenReturn(1);
 
-        // Act
-        int exitCode = command.runCommand(List.of("nonexistent-command"), "FailingProcess");
+            // Act
+            int exitCode = Command.runCommand(List.of("nonexistent-command"), "FailingProcess");
 
-        // Assert
-        assertEquals(1, exitCode);
-        verify(mockLogger).info("Command failed.");
-        verify(mockLogger).info("FailingProcess exited with code 1");
+            // Assert
+            assertEquals(1, exitCode);
+            verify(mockLogger).info(processOutput.trim());
+            verify(mockLogger).info("FailingProcess exited with code 1");
+        }
     }
 
     @Test
@@ -97,6 +98,20 @@ public class CommandTest {
 
         // Assert
         verify(mockLogger).info(processOutput.trim());
+    }
+
+    @Test
+    public void testPrintOutputEmpty() throws IOException {
+        // Arrange
+        ByteArrayInputStream inputStream = new ByteArrayInputStream("".getBytes(StandardCharsets.UTF_8));
+        Process mockProcess = mock(Process.class);
+        when(mockProcess.getInputStream()).thenReturn(inputStream);
+
+        // Act
+        Command.printOutput(mockProcess);
+
+        // Assert
+        verify(mockLogger, never()).info(anyString());
     }
 
     @Test
