@@ -1,82 +1,87 @@
-import org.finra.cpu.rmdownload.service.ItemDetailsSubscriber;
-import org.finra.cpu.rmdownload.service.RequestManagerCaseService;
-import org.finra.cpu.rmdownload.web.rest.dto.RequestManagerCaseDTO;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.*;
-import reactor.bus.Event;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
 
-@RunWith(MockitoJUnitRunner.class)  // Use this to automatically initialize mocks
-public class ItemDetailsSubscriberTest {
+@RunWith(MockitoJUnitRunner.class)
+public class ItemServiceTest {
 
-    // Mocking the dependencies
+    // Mock the ItemRepository dependency
     @Mock
-    private RequestManagerCaseService requestManagerCaseService;
+    private ItemRepository itemRepository;
 
-    @Mock
-    private EventBus itemDetailsEventBus;
-
-    // Injecting mocks into the class under test
+    // Inject mocks into the ItemService instance
     @InjectMocks
-    private ItemDetailsSubscriber itemDetailsSubscriber;
+    private ItemService itemService;
+
+    private Item item;
 
     @Before
     public void setUp() {
-        // The setup method should not be required to initialize mocks if using @RunWith(MockitoJUnitRunner.class)
-        // However, if you use `MockitoAnnotations.initMocks(this)` for testing without using the runner, it ensures all mocks are injected
-        MockitoAnnotations.initMocks(this);  
+        // Initialize the item object for testing
+        item = new Item();
+        item.setId(1L);
+        item.setName("Test Item");
     }
 
     @Test
-    public void testAccept_validEvent() {
-        // Preparing a sample RequestManagerCaseDTO
-        RequestManagerCaseDTO requestManagerCaseDTO = new RequestManagerCaseDTO();
-        requestManagerCaseDTO.setCaseId("case123");
-        requestManagerCaseDTO.setUserId("user123");
-
-        // Creating a mock RequestManagerCase object
-        RequestManagerCase mockCase = new RequestManagerCase();
-        mockCase.setCaseId("case123");
-
-        // Mocking the behavior of `findOneByCaseId` to return the mock case
-        when(requestManagerCaseService.findOneByCaseId("case123")).thenReturn(Optional.of(mockCase));
+    public void testSave() {
+        // Mock the save method to return the same item
+        when(itemRepository.save(any(Item.class))).thenReturn(item);
 
         // Call the method being tested
-        itemDetailsSubscriber.accept(new Event<>(requestManagerCaseDTO));
+        Item savedItem = itemService.save(item);
 
-        // Verify that the service's save method was called
-        verify(requestManagerCaseService, times(1)).save(mockCase);
+        // Verify that save was called on the repository
+        verify(itemRepository, times(1)).save(any(Item.class));
+
+        // Assert that the saved item is the same as the item returned by the method
+        assertEquals(item, savedItem);
     }
 
     @Test
-    public void testAccept_noCaseIdInDTO() {
-        // Preparing a sample RequestManagerCaseDTO with no caseId
-        RequestManagerCaseDTO requestManagerCaseDTO = new RequestManagerCaseDTO();
-        requestManagerCaseDTO.setCaseId(null);  // Simulating a case with no ID
+    public void testFindAll() {
+        // Mock the findAll method to return a mock page of items
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Item> mockPage = mock(Page.class);
+        when(itemRepository.findAll(pageable)).thenReturn(mockPage);
 
         // Call the method being tested
-        itemDetailsSubscriber.accept(new Event<>(requestManagerCaseDTO));
+        Page<Item> itemsPage = itemService.findAll(pageable);
 
-        // Verify that no interaction occurred with requestManagerCaseService
-        verify(requestManagerCaseService, times(0)).save(any());
+        // Verify that findAll was called on the repository
+        verify(itemRepository, times(1)).findAll(pageable);
+
+        // Assert that the result is the mocked page
+        assertEquals(mockPage, itemsPage);
     }
 
     @Test
-    public void testAccept_caseNotFound() {
-        // Preparing a sample RequestManagerCaseDTO
-        RequestManagerCaseDTO requestManagerCaseDTO = new RequestManagerCaseDTO();
-        requestManagerCaseDTO.setCaseId("case123");
-
-        // Mocking the behavior of `findOneByCaseId` to return an empty Optional
-        when(requestManagerCaseService.findOneByCaseId("case123")).thenReturn(Optional.empty());
+    public void testFindOne() {
+        // Mock the findById method to return an item
+        when(itemRepository.findById(1L)).thenReturn(java.util.Optional.of(item));
 
         // Call the method being tested
-        itemDetailsSubscriber.accept(new Event<>(requestManagerCaseDTO));
+        Item foundItem = itemService.findOne(1L);
 
-        // Verify that save was still called, but with a new empty case
-        verify(requestManagerCaseService, times(1)).save(any(RequestManagerCase.class));
+        // Verify that findById was called on the repository
+        verify(itemRepository, times(1)).findById(1L);
+
+        // Assert that the found item is the same as the item returned by the method
+        assertEquals(item, foundItem);
+    }
+
+    @Test
+    public void testDelete() {
+        // Call the method being tested
+        itemService.delete(1L);
+
+        // Verify that deleteById was called on the repository
+        verify(itemRepository, times(1)).deleteById(1L);
     }
 }
