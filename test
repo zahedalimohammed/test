@@ -2,68 +2,95 @@ package org.finra.cpu.rmdownload.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
+import java.io.File;
+import java.io.FileFilter;
 
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 class FileTransportServiceTest {
 
-    @Mock
-    private FileLister mockFileLister;  // Mocking the FileLister interface
-    
-    @Mock
-    private S3Service mockS3Service;    // Mocking the S3Service
-    
-    @Mock
-    private RequestManagerDownloadConfiguration mockConfiguration;  // Mocking configuration
-    
-    private FileTransportService fileTransportService;
-    
-    @BeforeEach
-    void setUp() throws NoSuchFieldException, IllegalAccessException {
-        MockitoAnnotations.openMocks(this);  // Initialize mocks
-        fileTransportService = new FileTransportService();
-        
-        // Inject mocks into the service using reflection
-        injectMock("configuration", mockConfiguration);
-        injectMock("s3Service", mockS3Service);
-        injectMock("fileLister", mockFileLister);
-    }
+    private static final Logger logger = LoggerFactory.getLogger(FileTransportServiceTest.class);
 
-    private void injectMock(String fieldName, Object mockObject) throws NoSuchFieldException, IllegalAccessException {
-        Field field = FileTransportService.class.getDeclaredField(fieldName);
-        field.setAccessible(true);  // Make the private field accessible
-        field.set(fileTransportService, mockObject);
+    @Mock
+    private RequestManagerDownloadConfiguration configuration;
+
+    @Mock
+    private S3Service s3Service;
+
+    @InjectMocks
+    private FileTransportService fileTransportService;
+
+    @Mock
+    private Job job;
+
+    @Mock
+    private File caseFolder;
+
+    @Mock
+    private File requestFolder;
+
+    @Mock
+    private File itemZip;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        
+        // Setting up mock behaviors for configuration
+        when(configuration.getCpuEnforcementBucketName()).thenReturn("testBucket");
+        when(configuration.getCpuEnforcementKeyName()).thenReturn("testKeyName");
+        when(configuration.getKmsKey()).thenReturn("testKmsKey");
+        when(configuration.getCpuEnforcementGoldPath()).thenReturn("testGoldPath");
+
+        // Mocking job and case ID
+        RequestManagerCase mockCase = mock(RequestManagerCase.class);
+        when(job.getRequestManagerCase()).thenReturn(mockCase);
+        when(mockCase.getCaseId()).thenReturn("12345");
+
+        // Mocking File system interactions
+        when(caseFolder.listFiles(any(FileFilter.class))).thenReturn(new File[]{requestFolder});
+        when(requestFolder.listFiles(any(FileFilter.class))).thenReturn(new File[]{itemZip});
+        when(itemZip.getPath()).thenReturn("testGoldPath/item.zip");
     }
 
     @Test
     void testUploadItems() {
-        // Setup test data
-        Job mockJob = mock(Job.class);
-        RequestManagerCase mockCase = mock(RequestManagerCase.class);
-        when(mockJob.getRequestManagerCase()).thenReturn(mockCase);
-        when(mockCase.getCaseId()).thenReturn("Case1");
-
-        File mockCaseFolder = mock(File.class);
-        File mockItemZip = mock(File.class);
-        
-        // Mock the behavior of listFiles()
-        File[] mockFolders = {mockCaseFolder};
-        File[] mockItemZips = {mockItemZip};
-        when(mockFileLister.listFiles(mockCaseFolder, DirectoryFileFilter.DIRECTORY)).thenReturn(mockFolders);
-        when(mockFileLister.listFiles(mockCaseFolder, DirectoryFileFilter.FILE)).thenReturn(mockItemZips);
-        
-        // Mock the behavior of the S3 upload
-        String mockItemZipPath = "some/path/to/item.zip";
-        when(mockItemZip.getPath()).thenReturn(mockItemZipPath);
+        // Arrange
+        String expectedGoldItemKeyName = "testKeyName/item.zip";
 
         // Act
-        fileTransportService.uploadItems(mockJob);
-        
-        // Verify the interactions and ensure that the method to upload files was called
-        verify(mockS3Service).uploadS3File(anyString(), eq(mockItemZipPath), anyString());
+        fileTransportService.uploadItems(job);
+
+        // Assert
+        // Verify that the S3 service upload method is called once with the correct parameters
+        verify(s3Service, times(1)).uploadS3File(eq("testBucket"), eq(expectedGoldItemKeyName), eq("testGoldPath/item.zip"), eq("testKmsKey"));
+    }
+
+    @Test
+    void testUploadItemsWithNullJob() {
+        // Act
+        fileTransportService.uploadItems(null);
+
+        // Assert
+        // Verify that the uploadS3File method is not called when job is null
+        verify(s3Service, never()).uploadS3File(any(), any(), any(), any());
+    }
+
+    @Test
+    void testUploadItemsNoFiles() {
+        // Arrange
+        when(caseFolder.listFiles(any(FileFilter.class))).thenReturn(null); // Simulate no files
+
+        // Act
+        fileTransportService.uploadItems(job);
+
+        // Assert
+        // Verify that the uploadS3File method is not called if no files exist
+        verify(s3Service, never()).uploadS3File(any(), any(), any(), any());
     }
 }
