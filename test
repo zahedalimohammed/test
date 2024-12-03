@@ -1,3 +1,85 @@
+import org.finra.cpu.rmdownload.service.ItemDetailsPublisher;
+import org.finra.cpu.rmdownload.web.rest.dto.RequestManagerCaseDTO;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class ItemDetailsPublisherTest {
+
+    @Mock
+    private EventBus mockItemDetailsEventBus;
+
+    @Mock
+    private Logger mockLogger;
+
+    private ItemDetailsPublisher itemDetailsPublisher;
+
+    @BeforeEach
+    public void setUp() {
+        MockitoAnnotations.openMocks(this);  // Initialize mocks
+        itemDetailsPublisher = new ItemDetailsPublisher();
+        itemDetailsPublisher.itemDetailsEventBus = mockItemDetailsEventBus;
+
+        // Mock the Logger to avoid actual logging
+        LoggerFactory.getLogger(ItemDetailsPublisher.class);
+        itemDetailsPublisher.log = mockLogger;
+    }
+
+    @Test
+    public void testPublishNotifiesEventBus() {
+        // Arrange
+        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
+        when(mockDTO.toString()).thenReturn("Mock RequestManagerCaseDTO");
+
+        // Act
+        itemDetailsPublisher.publish(mockDTO);
+
+        // Assert: Verify that the event bus's notify method is called with the correct arguments
+        verify(mockItemDetailsEventBus).notify(eq("cpu-rmdownload-itemDetails"), any());
+    }
+
+    @Test
+    public void testPublishLogsDebugMessage() {
+        // Arrange
+        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
+        when(mockDTO.toString()).thenReturn("Mock RequestManagerCaseDTO");
+
+        // Act
+        itemDetailsPublisher.publish(mockDTO);
+
+        // Assert: Verify that the logger's debug method is called with the correct message
+        verify(mockLogger).debug(eq("publish requestManagerCaseDTO: {}"), eq(mockDTO));
+    }
+
+    @Test
+    public void testPublishWithNullDTO() {
+        // Act: Call the method with null
+        itemDetailsPublisher.publish(null);
+
+        // Assert: Verify the behavior, e.g., ensure that the event bus's notify was not called
+        verify(mockItemDetailsEventBus, never()).notify(anyString(), any());
+    }
+
+    @Test
+    public void testPublishHandlesEmptyDTO() {
+        // Arrange: Mock an empty DTO
+        RequestManagerCaseDTO mockEmptyDTO = mock(RequestManagerCaseDTO.class);
+        when(mockEmptyDTO.toString()).thenReturn("");
+
+        // Act
+        itemDetailsPublisher.publish(mockEmptyDTO);
+
+        // Assert: Verify that the event bus is called with the empty DTO
+        verify(mockItemDetailsEventBus).notify(eq("cpu-rmdownload-itemDetails"), any());
+    }
+}
+
+
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
