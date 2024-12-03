@@ -1,87 +1,129 @@
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.*;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+package com.example.service;
+
+import org.apache.commons.io.filefilter.DirectoryFileFilter;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.slf4j.Logger;
+
+import javax.inject.Inject;
+import java.io.File;
+import java.io.FileFilter;
+
 import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
 
-@RunWith(MockitoJUnitRunner.class)
-public class ItemServiceTest {
+class ItemZipServiceTest {
 
-    // Mock the ItemRepository dependency
     @Mock
-    private ItemRepository itemRepository;
+    private RequestManagerDownloadConfiguration configuration;
 
-    // Inject mocks into the ItemService instance
+    @Mock
+    private Logger logger;
+
     @InjectMocks
-    private ItemService itemService;
+    private ItemZipService itemZipService;
 
-    private Item item;
-
-    @Before
-    public void setUp() {
-        // Initialize the item object for testing
-        item = new Item();
-        item.setId(1L);
-        item.setName("Test Item");
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    public void testSave() {
-        // Mock the save method to return the same item
-        when(itemRepository.save(any(Item.class))).thenReturn(item);
+    void testZipItems_withValidJob() {
+        // Mock Job and its dependencies
+        Job job = mock(Job.class);
+        RequestManagerCase requestManagerCase = mock(RequestManagerCase.class);
+        when(job.getRequestManagerCase()).thenReturn(requestManagerCase);
+        when(requestManagerCase.getCaseId()).thenReturn("12345");
 
-        // Call the method being tested
-        Item savedItem = itemService.save(item);
+        // Mock configuration paths
+        when(configuration.getCpuEnforcementGoldPath()).thenReturn("/mock/path");
 
-        // Verify that save was called on the repository
-        verify(itemRepository, times(1)).save(any(Item.class));
+        // Mock directory structure
+        File caseFolder = mock(File.class);
+        File requestFolder = mock(File.class);
+        File itemFolder = mock(File.class);
 
-        // Assert that the saved item is the same as the item returned by the method
-        assertEquals(item, savedItem);
+        // Set up file list mocks
+        when(caseFolder.listFiles((FileFilter) DirectoryFileFilter.DIRECTORY)).thenReturn(new File[]{requestFolder});
+        when(requestFolder.listFiles((FileFilter) DirectoryFileFilter.DIRECTORY)).thenReturn(new File[]{itemFolder});
+        when(requestFolder.getPath()).thenReturn("/mock/path/requestFolder");
+        when(itemFolder.getPath()).thenReturn("/mock/path/requestFolder/itemFolder");
+
+        // Spy on zipFolder to isolate logic
+        ItemZipService spyService = spy(itemZipService);
+        doReturn(true).when(spyService).zipFolder(anyString(), anyString());
+
+        // Execute the test
+        spyService.zipItems(job);
+
+        // Verify interactions
+        verify(configuration, times(1)).getCpuEnforcementGoldPath();
+        verify(spyService, times(1)).zipFolder(
+                eq("/mock/path/requestFolder/itemFolder"),
+                eq("/mock/path/requestFolder/itemFolder/*")
+        );
     }
 
     @Test
-    public void testFindAll() {
-        // Mock the findAll method to return a mock page of items
-        Pageable pageable = PageRequest.of(0, 10);
-        Page<Item> mockPage = mock(Page.class);
-        when(itemRepository.findAll(pageable)).thenReturn(mockPage);
+    void testZipItems_withNullJob() {
+        // Call zipItems with a null job
+        itemZipService.zipItems(null);
 
-        // Call the method being tested
-        Page<Item> itemsPage = itemService.findAll(pageable);
-
-        // Verify that findAll was called on the repository
-        verify(itemRepository, times(1)).findAll(pageable);
-
-        // Assert that the result is the mocked page
-        assertEquals(mockPage, itemsPage);
+        // Verify no interactions with dependencies
+        verifyNoInteractions(configuration);
     }
 
     @Test
-    public void testFindOne() {
-        // Mock the findById method to return an item
-        when(itemRepository.findById(1L)).thenReturn(java.util.Optional.of(item));
+    void testZipFolder_successfulZip() throws Exception {
+        // Mock configuration path
+        when(configuration.getSevenZipPath()).thenReturn("/mock/sevenZipPath");
 
-        // Call the method being tested
-        Item foundItem = itemService.findOne(1L);
+        // Mock successful command execution
+        Command commandMock = mock(Command.class);
+        when(Command.runCommand(anyList(), eq("Zip Item"))).thenReturn(0);
 
-        // Verify that findById was called on the repository
-        verify(itemRepository, times(1)).findById(1L);
+        // Call zipFolder
+        boolean result = itemZipService.zipFolder("/mock/destination", "/mock/source");
 
-        // Assert that the found item is the same as the item returned by the method
-        assertEquals(item, foundItem);
+        // Assert result and verify logger
+        assertTrue(result);
+        verify(logger, never()).error(anyString(), any(Throwable.class));
     }
 
     @Test
-    public void testDelete() {
-        // Call the method being tested
-        itemService.delete(1L);
+    void testZipFolder_failedZip() throws Exception {
+        // Mock configuration path
+        when(configuration.getSevenZipPath()).thenReturn("/mock/sevenZipPath");
 
-        // Verify that deleteById was called on the repository
-        verify(itemRepository, times(1)).deleteById(1L);
+        // Mock failed command execution
+        Command commandMock = mock(Command.class);
+        when(Command.runCommand(anyList(), eq("Zip Item"))).thenReturn(1);
+
+        // Call zipFolder
+        boolean result = itemZipService.zipFolder("/mock/destination", "/mock/source");
+
+        // Assert result and verify logger
+        assertFalse(result);
+        verify(logger, times(1)).error(contains("Error zipping Item folder"));
+    }
+
+    @Test
+    void testZipFolder_withException() {
+        // Mock configuration path
+        when(configuration.getSevenZipPath()).thenReturn("/mock/sevenZipPath");
+
+        // Mock exception during command execution
+        Command commandMock = mock(Command.class);
+        when(Command.runCommand(anyList(), eq("Zip Item"))).thenThrow(new RuntimeException("Mock Exception"));
+
+        // Call zipFolder
+        boolean result = itemZipService.zipFolder("/mock/destination", "/mock/source");
+
+        // Assert result and verify logger
+        assertFalse(result);
+        verify(logger, times(1)).error(contains("Error zipping Item folder"), any(RuntimeException.class));
     }
 }
