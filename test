@@ -1,5 +1,3 @@
-package org.finra.cpu.rndownload.service;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
@@ -47,8 +45,9 @@ class FileTransportServiceTest {
         File[] mockRequestFolders = new File[]{mockFolder};
         File[] mockItemZips = new File[]{mockFile};
 
-        when(mockFolder.listFiles(any())).thenReturn(mockRequestFolders);
-        when(mockFile.listFiles(any())).thenReturn(mockItemZips);
+        // Fix for ambiguity in listFiles() method by using argThat to specify the expected filter
+        when(mockFolder.listFiles(argThat(fileFilter -> fileFilter != null))).thenReturn(mockRequestFolders);
+        when(mockFile.listFiles(argThat(fileFilter -> fileFilter != null))).thenReturn(mockItemZips);
         when(mockFile.getPath()).thenReturn("/mock/path/Job1.zip");
 
         // Act
@@ -75,8 +74,9 @@ class FileTransportServiceTest {
         File[] mockRequestFolders = new File[]{mockFolder};
         File[] mockItemZips = new File[]{mockFile};
 
-        when(mockFolder.listFiles(any())).thenReturn(mockRequestFolders);
-        when(mockFile.listFiles(any())).thenReturn(mockItemZips);
+        // Fix for ambiguity in listFiles() method by using argThat to specify the expected filter
+        when(mockFolder.listFiles(argThat(fileFilter -> fileFilter != null))).thenReturn(mockRequestFolders);
+        when(mockFile.listFiles(argThat(fileFilter -> fileFilter != null))).thenReturn(mockItemZips);
         when(mockFile.getPath()).thenReturn("/mock/path/Case123.zip");
 
         // Act
@@ -96,8 +96,10 @@ class FileTransportServiceTest {
 
         File mockFolder = mock(File.class);
         File[] mockRequestFolders = new File[]{mockFolder};
-        when(mockFolder.listFiles(any())).thenReturn(mockRequestFolders);
-        when(mockFile.listFiles(any())).thenReturn(new File[]{});
+
+        // Fix for ambiguity in listFiles() method by using argThat to specify the expected filter
+        when(mockFolder.listFiles(argThat(fileFilter -> fileFilter != null))).thenReturn(mockRequestFolders);
+        when(mockFile.listFiles(argThat(fileFilter -> fileFilter != null))).thenReturn(new File[]{});
 
         // Act
         fileTransportService.uploadItemsJob(null);
@@ -118,8 +120,9 @@ class FileTransportServiceTest {
         File[] mockRequestFolders = new File[]{mockFolder};
         File[] mockItemZips = new File[]{mockFile, mockFile};
 
-        when(mockFolder.listFiles(any())).thenReturn(mockRequestFolders);
-        when(mockFile.listFiles(any())).thenReturn(mockItemZips);
+        // Fix for ambiguity in listFiles() method by using argThat to specify the expected filter
+        when(mockFolder.listFiles(argThat(fileFilter -> fileFilter != null))).thenReturn(mockRequestFolders);
+        when(mockFile.listFiles(argThat(fileFilter -> fileFilter != null))).thenReturn(mockItemZips);
         when(mockFile.getPath()).thenReturn("/mock/path/Case123.zip");
 
         // Act
