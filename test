@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.*;
 
 import java.io.File;
+import java.io.FileFilter;
 
 public class FileTransportServiceTest {
 
@@ -19,7 +20,16 @@ public class FileTransportServiceTest {
     private Job mockJob;
 
     @Mock
+    private RequestManagerCase mockRequestManagerCase;
+
+    @Mock
     private File mockCaseFolder;
+
+    @Mock
+    private File mockRequestFolder;
+
+    @Mock
+    private File mockItemZip;
 
     private FileTransportService fileTransportService;
 
@@ -36,18 +46,17 @@ public class FileTransportServiceTest {
         when(mockConfiguration.getCpuEnforcementKeyName()).thenReturn("keyName");
         when(mockConfiguration.getKmsKey()).thenReturn("kmsKey");
 
-        // Mock behavior of the case folder
+        // Mock the behavior of RequestManagerCase and Job
         when(mockJob.getRequestManagerCase()).thenReturn(mockRequestManagerCase);
         when(mockRequestManagerCase.getCaseId()).thenReturn("123");
 
-        // Mock listFiles behavior for directories
-        File[] mockRequestFolders = new File[] { mockCaseFolder };
+        // Mock the listFiles method for directories
+        File[] mockRequestFolders = new File[] { mockRequestFolder };
         when(mockCaseFolder.listFiles(any(FileFilter.class))).thenReturn(mockRequestFolders);
 
-        // Mock the behavior for files inside the request folder
-        File mockItemZip = mock(File.class);
+        // Mock the listFiles method for item zip files
         File[] mockItemZips = new File[] { mockItemZip };
-        when(mockCaseFolder.listFiles((FileFilter) any())).thenReturn(mockItemZips);
+        when(mockRequestFolder.listFiles(any(FileFilter.class))).thenReturn(mockItemZips);
     }
 
     @Test
