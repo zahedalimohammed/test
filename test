@@ -1,3 +1,105 @@
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+public class AuditEventServiceTest {
+
+    @Mock
+    private PersistenceAuditEventRepository persistenceAuditEventRepository;
+
+    @Mock
+    private AuditEventConverter auditEventConverter;
+
+    @InjectMocks
+    private AuditEventService auditEventService;
+
+    @BeforeEach
+    public void setup() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    public void testFindAll() {
+        Pageable pageable = mock(Pageable.class);
+        PersistentAuditEvent mockEvent = new PersistentAuditEvent();
+        AuditEvent auditEvent = new AuditEvent("principal", "type", null);
+
+        when(persistenceAuditEventRepository.findAll(pageable))
+                .thenReturn(new PageImpl<>(Collections.singletonList(mockEvent)));
+        when(auditEventConverter.convertToAuditEvent(mockEvent)).thenReturn(auditEvent);
+
+        Page<AuditEvent> result = auditEventService.findAll(pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(persistenceAuditEventRepository, times(1)).findAll(pageable);
+        verify(auditEventConverter, times(1)).convertToAuditEvent(mockEvent);
+    }
+
+    @Test
+    public void testFindByDates() {
+        LocalDateTime fromDate = LocalDateTime.now().minusDays(1);
+        LocalDateTime toDate = LocalDateTime.now();
+        Pageable pageable = mock(Pageable.class);
+        PersistentAuditEvent mockEvent = new PersistentAuditEvent();
+        AuditEvent auditEvent = new AuditEvent("principal", "type", null);
+
+        when(persistenceAuditEventRepository.findAllByAuditEventDateBetween(fromDate, toDate, pageable))
+                .thenReturn(new PageImpl<>(Collections.singletonList(mockEvent)));
+        when(auditEventConverter.convertToAuditEvent(mockEvent)).thenReturn(auditEvent);
+
+        Page<AuditEvent> result = auditEventService.findByDates(fromDate, toDate, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(persistenceAuditEventRepository, times(1)).findAllByAuditEventDateBetween(fromDate, toDate, pageable);
+        verify(auditEventConverter, times(1)).convertToAuditEvent(mockEvent);
+    }
+
+    @Test
+    public void testFind() {
+        Long id = 1L;
+        PersistentAuditEvent mockEvent = new PersistentAuditEvent();
+        AuditEvent auditEvent = new AuditEvent("principal", "type", null);
+
+        when(persistenceAuditEventRepository.findById(id)).thenReturn(Optional.of(mockEvent));
+        when(auditEventConverter.convertToAuditEvent(mockEvent)).thenReturn(auditEvent);
+
+        Optional<AuditEvent> result = auditEventService.find(id);
+
+        assertTrue(result.isPresent());
+        assertEquals("principal", result.get().getPrincipal());
+        verify(persistenceAuditEventRepository, times(1)).findById(id);
+        verify(auditEventConverter, times(1)).convertToAuditEvent(mockEvent);
+    }
+
+    @Test
+    public void testFindNotFound() {
+        Long id = 1L;
+
+        when(persistenceAuditEventRepository.findById(id)).thenReturn(Optional.empty());
+
+        Optional<AuditEvent> result = auditEventService.find(id);
+
+        assertFalse(result.isPresent());
+        verify(persistenceAuditEventRepository, times(1)).findById(id);
+        verifyNoInteractions(auditEventConverter);
+    }
+}
+
+
 package org.finra.cpu.rmdownLoad.service;
 
 import org.apache.commons.io.IOUtils;
