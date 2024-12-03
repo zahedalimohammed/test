@@ -5,15 +5,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.*;
-import org.mockito.junit.MockitoJUnitRunner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Optional;
+import reactor.bus.Event;
 
 import static org.mockito.Mockito.*;
 
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(MockitoJUnitRunner.class)  // Use this to automatically initialize mocks
 public class ItemDetailsSubscriberTest {
 
     // Mocking the dependencies
@@ -23,13 +19,15 @@ public class ItemDetailsSubscriberTest {
     @Mock
     private EventBus itemDetailsEventBus;
 
+    // Injecting mocks into the class under test
     @InjectMocks
     private ItemDetailsSubscriber itemDetailsSubscriber;
 
     @Before
     public void setUp() {
-        // Initialize mocks and inject them into the subscriber
-        MockitoAnnotations.initMocks(this);
+        // The setup method should not be required to initialize mocks if using @RunWith(MockitoJUnitRunner.class)
+        // However, if you use `MockitoAnnotations.initMocks(this)` for testing without using the runner, it ensures all mocks are injected
+        MockitoAnnotations.initMocks(this);  
     }
 
     @Test
@@ -51,8 +49,6 @@ public class ItemDetailsSubscriberTest {
 
         // Verify that the service's save method was called
         verify(requestManagerCaseService, times(1)).save(mockCase);
-
-        // Additional verifications or assertions can go here based on your logic
     }
 
     @Test
@@ -82,350 +78,5 @@ public class ItemDetailsSubscriberTest {
 
         // Verify that save was still called, but with a new empty case
         verify(requestManagerCaseService, times(1)).save(any(RequestManagerCase.class));
-    }
-}
-
-
-import org.finra.cpu.rmdownload.service.ItemDetailsSubscriber;
-import org.finra.cpu.rmdownload.web.rest.dto.RequestManagerCaseDTO;
-import org.finra.cpu.rmdownload.web.rest.dto.ItemDTO;
-import org.finra.cpu.rmdownload.service.RequestManagerCaseService;
-import org.finra.cpu.rmdownload.service.JobService;
-import org.finra.cpu.rmdownload.service.RequestManagerMailService;
-import org.finra.cpu.rmdownload.service.RestUtil;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.*;
-
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-
-public class ItemDetailsSubscriberTest {
-
-    @Mock
-    private RestUtil restUtil;
-    
-    @Mock
-    private RequestManagerCaseService requestManagerCaseService;
-    
-    @Mock
-    private JobService jobService;
-    
-    @Mock
-    private RequestManagerMailService requestManagerMailService;
-    
-    @Mock
-    private Logger mockLogger;
-    
-    @InjectMocks
-    private ItemDetailsSubscriber itemDetailsSubscriber;
-
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);
-        // Mock the LoggerFactory to return the mocked logger
-        when(LoggerFactory.getLogger(ItemDetailsSubscriber.class)).thenReturn(mockLogger);
-    }
-
-    @Test
-    public void testAcceptValidCaseId() {
-        // Arrange
-        String caseId = "case123";
-        String userId = "user1";
-        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
-        when(mockDTO.getCaseId()).thenReturn(caseId);
-        when(mockDTO.getUserId()).thenReturn(userId);
-        
-        RequestManagerCase mockCase = mock(RequestManagerCase.class);
-        Optional<RequestManagerCase> optionalRequestManagerCase = Optional.of(mockCase);
-        when(requestManagerCaseService.findOneByCaseId(caseId)).thenReturn(optionalRequestManagerCase);
-
-        RequestDTO mockRequestDTO = mock(RequestDTO.class);
-        ItemDTO mockItemDTO = mock(ItemDTO.class);
-        when(mockRequestDTO.getItems()).thenReturn(List.of(mockItemDTO));
-        
-        // Create a mock response from restUtil
-        ItemDetailsResponse mockItemDetailsResponse = mock(ItemDetailsResponse.class);
-        when(restUtil.getItemDetails(caseId, "1")).thenReturn(mockItemDetailsResponse);
-
-        // Act
-        itemDetailsSubscriber.accept(new Event<>(mockDTO));
-
-        // Assert: Verify that the methods are called as expected
-        verify(requestManagerCaseService).save(mockCase);
-        verify(jobService).save(any(Job.class));
-    }
-
-    @Test
-    public void testAcceptEmptyCaseId() {
-        // Arrange
-        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
-        when(mockDTO.getCaseId()).thenReturn("");  // Empty CaseId
-        
-        // Act
-        itemDetailsSubscriber.accept(new Event<>(mockDTO));
-
-        // Assert: Verify that no further processing happens
-        verify(requestManagerCaseService, never()).findOneByCaseId(anyString());
-        verify(jobService, never()).save(any(Job.class));
-    }
-
-    @Test
-    public void testAcceptExceptionHandling() {
-        // Arrange
-        String caseId = "case123";
-        String userId = "user1";
-        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
-        when(mockDTO.getCaseId()).thenReturn(caseId);
-        when(mockDTO.getUserId()).thenReturn(userId);
-
-        when(requestManagerCaseService.findOneByCaseId(caseId)).thenThrow(new RuntimeException("Service Error"));
-
-        // Act
-        itemDetailsSubscriber.accept(new Event<>(mockDTO));
-
-        // Assert: Verify that error logging and failure notification occur
-        verify(mockLogger).error(contains("error while getting case items"));
-        verify(requestManagerMailService).sendDownloadFailureNotification(any(Job.class), eq(mockDTO));
-    }
-}
-
-
-import org.finra.cpu.rmdownload.service.ItemDetailsPublisher;
-import org.finra.cpu.rmdownload.web.rest.dto.RequestManagerCaseDTO;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-
-public class ItemDetailsPublisherTest {
-
-    @Mock
-    private EventBus mockItemDetailsEventBus;  // Mock for EventBus
-
-    @Mock
-    private Logger mockLogger;  // Mock for Logger
-
-    @InjectMocks
-    private ItemDetailsPublisher itemDetailsPublisher;  // The class we are testing
-
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);  // Initialize mocks
-
-        // Mock the LoggerFactory to return the mocked logger
-        Mockito.when(LoggerFactory.getLogger(ItemDetailsPublisher.class)).thenReturn(mockLogger);
-        
-        // If there's a setter method or if we can directly inject, do it here.
-        itemDetailsPublisher.itemDetailsEventBus = mockItemDetailsEventBus;  // Set the mock EventBus
-        itemDetailsPublisher.log = mockLogger;  // Set the mock Logger
-    }
-
-    @Test
-    public void testPublishNotifiesEventBus() {
-        // Arrange
-        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
-        when(mockDTO.toString()).thenReturn("Mock RequestManagerCaseDTO");
-
-        // Act
-        itemDetailsPublisher.publish(mockDTO);
-
-        // Assert: Verify that the event bus's notify method is called with the correct arguments
-        verify(mockItemDetailsEventBus).notify(eq("cpu-rmdownload-itemDetails"), any());
-    }
-
-    @Test
-    public void testPublishLogsDebugMessage() {
-        // Arrange
-        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
-        when(mockDTO.toString()).thenReturn("Mock RequestManagerCaseDTO");
-
-        // Act
-        itemDetailsPublisher.publish(mockDTO);
-
-        // Assert: Verify that the logger's debug method is called with the correct message
-        verify(mockLogger).debug(eq("publish requestManagerCaseDTO: {}"), eq(mockDTO));
-    }
-
-    @Test
-    public void testPublishWithNullDTO() {
-        // Act: Call the method with null
-        itemDetailsPublisher.publish(null);
-
-        // Assert: Verify the behavior, e.g., ensure that the event bus's notify was not called
-        verify(mockItemDetailsEventBus, never()).notify(anyString(), any());
-    }
-
-    @Test
-    public void testPublishHandlesEmptyDTO() {
-        // Arrange: Mock an empty DTO
-        RequestManagerCaseDTO mockEmptyDTO = mock(RequestManagerCaseDTO.class);
-        when(mockEmptyDTO.toString()).thenReturn("");
-
-        // Act
-        itemDetailsPublisher.publish(mockEmptyDTO);
-
-        // Assert: Verify that the event bus is called with the empty DTO
-        verify(mockItemDetailsEventBus).notify(eq("cpu-rmdownload-itemDetails"), any());
-    }
-}
-
-
-import org.finra.cpu.rmdownload.service.ItemDetailsPublisher;
-import org.finra.cpu.rmdownload.web.rest.dto.RequestManagerCaseDTO;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-
-public class ItemDetailsPublisherTest {
-
-    @Mock
-    private EventBus mockItemDetailsEventBus;
-
-    @Mock
-    private Logger mockLogger;
-
-    private ItemDetailsPublisher itemDetailsPublisher;
-
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);  // Initialize mocks
-        itemDetailsPublisher = new ItemDetailsPublisher();
-        itemDetailsPublisher.itemDetailsEventBus = mockItemDetailsEventBus;
-
-        // Mock the Logger to avoid actual logging
-        LoggerFactory.getLogger(ItemDetailsPublisher.class);
-        itemDetailsPublisher.log = mockLogger;
-    }
-
-    @Test
-    public void testPublishNotifiesEventBus() {
-        // Arrange
-        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
-        when(mockDTO.toString()).thenReturn("Mock RequestManagerCaseDTO");
-
-        // Act
-        itemDetailsPublisher.publish(mockDTO);
-
-        // Assert: Verify that the event bus's notify method is called with the correct arguments
-        verify(mockItemDetailsEventBus).notify(eq("cpu-rmdownload-itemDetails"), any());
-    }
-
-    @Test
-    public void testPublishLogsDebugMessage() {
-        // Arrange
-        RequestManagerCaseDTO mockDTO = mock(RequestManagerCaseDTO.class);
-        when(mockDTO.toString()).thenReturn("Mock RequestManagerCaseDTO");
-
-        // Act
-        itemDetailsPublisher.publish(mockDTO);
-
-        // Assert: Verify that the logger's debug method is called with the correct message
-        verify(mockLogger).debug(eq("publish requestManagerCaseDTO: {}"), eq(mockDTO));
-    }
-
-    @Test
-    public void testPublishWithNullDTO() {
-        // Act: Call the method with null
-        itemDetailsPublisher.publish(null);
-
-        // Assert: Verify the behavior, e.g., ensure that the event bus's notify was not called
-        verify(mockItemDetailsEventBus, never()).notify(anyString(), any());
-    }
-
-    @Test
-    public void testPublishHandlesEmptyDTO() {
-        // Arrange: Mock an empty DTO
-        RequestManagerCaseDTO mockEmptyDTO = mock(RequestManagerCaseDTO.class);
-        when(mockEmptyDTO.toString()).thenReturn("");
-
-        // Act
-        itemDetailsPublisher.publish(mockEmptyDTO);
-
-        // Assert: Verify that the event bus is called with the empty DTO
-        verify(mockItemDetailsEventBus).notify(eq("cpu-rmdownload-itemDetails"), any());
-    }
-}
-
-
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.*;
-
-import java.io.File;
-import java.io.FileFilter;
-
-public class FileTransportServiceTest {
-
-    @Mock
-    private RequestManagerDownloadConfiguration mockConfiguration;
-
-    @Mock
-    private S3Service mockS3Service;
-
-    @Mock
-    private Job mockJob;
-
-    @Mock
-    private RequestManagerCase mockRequestManagerCase;
-
-    @Mock
-    private File mockCaseFolder;
-
-    @Mock
-    private File mockRequestFolder;
-
-    @Mock
-    private File mockItemZip;
-
-    private FileTransportService fileTransportService;
-
-    @BeforeEach
-    public void setUp() {
-        MockitoAnnotations.openMocks(this);  // Initializes the mocks
-        fileTransportService = new FileTransportService();
-        fileTransportService.configuration = mockConfiguration;
-        fileTransportService.s3Service = mockS3Service;
-
-        // Mock the behavior of methods in RequestManagerDownloadConfiguration
-        when(mockConfiguration.getCpuEnforcementGoldPath()).thenReturn("/some/path");
-        when(mockConfiguration.getCpuEnforcementBucketName()).thenReturn("bucketName");
-        when(mockConfiguration.getCpuEnforcementKeyName()).thenReturn("keyName");
-        when(mockConfiguration.getKmsKey()).thenReturn("kmsKey");
-
-        // Mock the behavior of RequestManagerCase and Job
-        when(mockJob.getRequestManagerCase()).thenReturn(mockRequestManagerCase);
-        when(mockRequestManagerCase.getCaseId()).thenReturn("123");
-
-        // Create mock folders and files for testing
-        File[] mockRequestFolders = new File[] { mockRequestFolder };
-        File[] mockItemZips = new File[] { mockItemZip };
-
-        // Mock the listFiles for directories
-        when(mockCaseFolder.listFiles((FileFilter) any())).thenReturn(mockRequestFolders);
-
-        // Mock the listFiles for files
-        when(mockRequestFolder.listFiles((FileFilter) any())).thenReturn(mockItemZips);
-    }
-
-    @Test
-    public void testUploadItems() {
-        // Act: Call the method being tested
-        fileTransportService.uploadItems(mockJob);
-
-        // Assert: Verify the correct interactions with the mock objects
-        verify(mockS3Service).uploadS3File(anyString(), anyString(), anyString(), anyString());
     }
 }
