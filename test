@@ -1,3 +1,117 @@
+package org.finra.cpu.rmdownLoad.service;
+
+import org.apache.commons.io.IOUtils;
+import org.junit.jupiter.api.*;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+public class CommandTest {
+
+    private MockedStatic<LoggerFactory> mockedLoggerFactory;
+    private Logger mockLogger;
+
+    @BeforeEach
+    public void setUp() {
+        mockLogger = mock(Logger.class);
+        mockedLoggerFactory = mockStatic(LoggerFactory.class);
+        mockedLoggerFactory.when(() -> LoggerFactory.getLogger(Command.class)).thenReturn(mockLogger);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        mockedLoggerFactory.close();
+    }
+
+    @Test
+    public void testRunCommandSuccess() throws IOException, InterruptedException {
+        Process mockProcess = mock(Process.class);
+        ProcessBuilder mockProcessBuilder = mock(ProcessBuilder.class);
+        String processOutput = "Command executed successfully.";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
+
+        try (MockedStatic<ProcessBuilder> mockedProcessBuilder = mockStatic(ProcessBuilder.class)) {
+            mockedProcessBuilder.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.start()).thenReturn(mockProcess);
+
+            when(mockProcess.getInputStream()).thenReturn(inputStream);
+            when(mockProcess.waitFor()).thenReturn(0);
+
+            int exitCode = Command.runCommand(List.of("echo", "Hello"), "TestProcess");
+
+            assertEquals(0, exitCode);
+            verify(mockLogger).info(processOutput.trim());
+            verify(mockLogger).info("TestProcess exited with code 0");
+        }
+    }
+
+    @Test
+    public void testRunCommandFailure() throws IOException, InterruptedException {
+        Process mockProcess = mock(Process.class);
+        ProcessBuilder mockProcessBuilder = mock(ProcessBuilder.class);
+        String processOutput = "Command failed.";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
+
+        try (MockedStatic<ProcessBuilder> mockedProcessBuilder = mockStatic(ProcessBuilder.class)) {
+            mockedProcessBuilder.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
+            when(mockProcessBuilder.start()).thenReturn(mockProcess);
+
+            when(mockProcess.getInputStream()).thenReturn(inputStream);
+            when(mockProcess.waitFor()).thenReturn(1);
+
+            int exitCode = Command.runCommand(List.of("nonexistent-command"), "FailingProcess");
+
+            assertEquals(1, exitCode);
+            verify(mockLogger).info(processOutput.trim());
+            verify(mockLogger).info("FailingProcess exited with code 1");
+        }
+    }
+
+    @Test
+    public void testPrintOutput() throws IOException {
+        String processOutput = "Some process output.";
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
+        Process mockProcess = mock(Process.class);
+        when(mockProcess.getInputStream()).thenReturn(inputStream);
+
+        Command.printoutput(mockProcess);
+
+        verify(mockLogger).info(processOutput.trim());
+    }
+
+    @Test
+    public void testPrintOutputEmpty() throws IOException {
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[0]);
+        Process mockProcess = mock(Process.class);
+        when(mockProcess.getInputStream()).thenReturn(inputStream);
+
+        Command.printoutput(mockProcess);
+
+        verify(mockLogger, never()).info(anyString());
+    }
+
+    @Test
+    public void testPrintExitCode() {
+        Command.printExitCode("TestProcess", 0);
+
+        verify(mockLogger).info("TestProcess exited with code 0");
+    }
+}
+
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
