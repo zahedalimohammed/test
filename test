@@ -1,136 +1,131 @@
-package org.finra.cpu.rmdownload.service;
+package org.finra.cpu.rndownload.service;
 
-import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
+import org.mockito.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-public class CommandTest {
+class FileTransportServiceTest {
 
-    private MockedStatic<LoggerFactory> mockedLoggerFactory;
-    private Logger mockLogger;
+    @InjectMocks
+    private FileTransportService fileTransportService;
+
+    @Mock
+    private RequestManagerDownloadConfiguration configuration;
+
+    @Mock
+    private SSService ssservice;
+
+    @Mock
+    private Logger logger;
+
+    @Mock
+    private File mockFile;
+
+    @Mock
+    private File[] mockFiles;
 
     @BeforeEach
-    public void setUp() {
-        // Mocking the logger to intercept log messages
-        mockLogger = mock(Logger.class);
-        mockedLoggerFactory = mockStatic(LoggerFactory.class);
-        mockedLoggerFactory.when(() -> LoggerFactory.getLogger(Command.class)).thenReturn(mockLogger);
-    }
-
-    @AfterEach
-    public void tearDown() {
-        // Deregister the static mock for LoggerFactory after each test
-        mockedLoggerFactory.close();
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    public void testRunCommandSuccess() throws IOException, InterruptedException {
+    void testUploadItemsJobNull() throws IOException {
         // Arrange
-        Process mockProcess = mock(Process.class);
-        ProcessBuilder mockProcessBuilder = mock(ProcessBuilder.class);
-        String processOutput = "Command executed successfully.";
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
+        String goldKmsKey = "testKmsKey";
+        when(configuration.getKmsKey()).thenReturn(goldKmsKey);
+        when(configuration.getCpuEnforcementGoldPath()).thenReturn("/mock/path");
 
-        // Use mockStatic to mock ProcessBuilder only in this test case
-        try (MockedStatic<ProcessBuilder> mockedProcessBuilderStatic = mockStatic(ProcessBuilder.class)) {
-            // Stubbing ProcessBuilder with specific parameters, using the correct matcher for list
-            mockedProcessBuilderStatic.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
+        File mockFolder = mock(File.class);
+        File[] mockRequestFolders = new File[]{mockFolder};
+        File[] mockItemZips = new File[]{mockFile};
 
-            when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
-            when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
-            when(mockProcessBuilder.start()).thenReturn(mockProcess);
-
-            when(mockProcess.getInputStream()).thenReturn(inputStream);
-            when(mockProcess.waitFor()).thenReturn(0);
-
-            // Act
-            int exitCode = Command.runCommand(List.of("echo", "Hello"), "TestProcess");
-
-            // Assert
-            assertEquals(0, exitCode);
-            verify(mockLogger).info(processOutput.trim());
-            verify(mockLogger).info("TestProcess exited with code 0");
-        }
-    }
-
-    @Test
-    public void testRunCommandFailure() throws IOException, InterruptedException {
-        // Arrange
-        Process mockProcess = mock(Process.class);
-        ProcessBuilder mockProcessBuilder = mock(ProcessBuilder.class);
-        String processOutput = "Command failed.";
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
-
-        // Use mockStatic to mock ProcessBuilder only in this test case
-        try (MockedStatic<ProcessBuilder> mockedProcessBuilderStatic = mockStatic(ProcessBuilder.class)) {
-            // Stubbing ProcessBuilder with specific parameters
-            mockedProcessBuilderStatic.when(() -> new ProcessBuilder(anyList())).thenReturn(mockProcessBuilder);
-
-            when(mockProcessBuilder.redirectErrorStream(true)).thenReturn(mockProcessBuilder);
-            when(mockProcessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE)).thenReturn(mockProcessBuilder);
-            when(mockProcessBuilder.start()).thenReturn(mockProcess);
-
-            when(mockProcess.getInputStream()).thenReturn(inputStream);
-            when(mockProcess.waitFor()).thenReturn(1);
-
-            // Act
-            int exitCode = Command.runCommand(List.of("nonexistent-command"), "FailingProcess");
-
-            // Assert
-            assertEquals(1, exitCode);
-            verify(mockLogger).info(processOutput.trim());
-            verify(mockLogger).info("FailingProcess exited with code 1");
-        }
-    }
-
-    @Test
-    public void testPrintOutput() throws IOException {
-        // Arrange
-        String processOutput = "Some process output.";
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(processOutput.getBytes(StandardCharsets.UTF_8));
-        Process mockProcess = mock(Process.class);
-        when(mockProcess.getInputStream()).thenReturn(inputStream);
+        when(mockFolder.listFiles(any())).thenReturn(mockRequestFolders);
+        when(mockFile.listFiles(any())).thenReturn(mockItemZips);
+        when(mockFile.getPath()).thenReturn("/mock/path/Job1.zip");
 
         // Act
-        Command.printOutput(mockProcess);
+        fileTransportService.uploadItemsJob(null);
 
         // Assert
-        verify(mockLogger).info(processOutput.trim());
+        verify(ssservice, times(1)).uploadS3File(anyString(), anyString(), anyString(), eq(goldKmsKey));
+        verify(logger, times(1)).debug("Uploading Items");
     }
 
     @Test
-    public void testPrintOutputEmpty() throws IOException {
+    void testUploadItemsJobWithJob() throws IOException {
         // Arrange
-        ByteArrayInputStream inputStream = new ByteArrayInputStream("".getBytes(StandardCharsets.UTF_8));
-        Process mockProcess = mock(Process.class);
-        when(mockProcess.getInputStream()).thenReturn(inputStream);
+        String goldKmsKey = "testKmsKey";
+        when(configuration.getKmsKey()).thenReturn(goldKmsKey);
+        when(configuration.getCpuEnforcementGoldPath()).thenReturn("/mock/path");
+
+        // Mock the job and folder structure
+        Job mockJob = mock(Job.class);
+        when(mockJob.getRequestManagerCase()).thenReturn(new RequestManagerCase("Case1"));
+        when(mockJob.getRequestManagerCase().getCaseId()).thenReturn("Case123");
+
+        File mockFolder = mock(File.class);
+        File[] mockRequestFolders = new File[]{mockFolder};
+        File[] mockItemZips = new File[]{mockFile};
+
+        when(mockFolder.listFiles(any())).thenReturn(mockRequestFolders);
+        when(mockFile.listFiles(any())).thenReturn(mockItemZips);
+        when(mockFile.getPath()).thenReturn("/mock/path/Case123.zip");
 
         // Act
-        Command.printOutput(mockProcess);
+        fileTransportService.uploadItemsJob(mockJob);
 
         // Assert
-        verify(mockLogger, never()).info(anyString());
+        verify(ssservice, times(1)).uploadS3File(anyString(), anyString(), anyString(), eq(goldKmsKey));
+        verify(logger, times(1)).debug("Uploading Items");
     }
 
     @Test
-    public void testPrintExitCode() {
+    void testNoFilesToUpload() throws IOException {
+        // Arrange
+        String goldKmsKey = "testKmsKey";
+        when(configuration.getKmsKey()).thenReturn(goldKmsKey);
+        when(configuration.getCpuEnforcementGoldPath()).thenReturn("/mock/path");
+
+        File mockFolder = mock(File.class);
+        File[] mockRequestFolders = new File[]{mockFolder};
+        when(mockFolder.listFiles(any())).thenReturn(mockRequestFolders);
+        when(mockFile.listFiles(any())).thenReturn(new File[]{});
+
         // Act
-        Command.printExitCode("TestProcess", 0);
+        fileTransportService.uploadItemsJob(null);
+
+        // Assert: No files should be uploaded
+        verify(ssservice, never()).uploadS3File(anyString(), anyString(), anyString(), eq(goldKmsKey));
+    }
+
+    @Test
+    void testUploadItemsJobWithMultipleFiles() throws IOException {
+        // Arrange
+        String goldKmsKey = "testKmsKey";
+        when(configuration.getKmsKey()).thenReturn(goldKmsKey);
+        when(configuration.getCpuEnforcementGoldPath()).thenReturn("/mock/path");
+
+        // Mock multiple files in the directory
+        File mockFolder = mock(File.class);
+        File[] mockRequestFolders = new File[]{mockFolder};
+        File[] mockItemZips = new File[]{mockFile, mockFile};
+
+        when(mockFolder.listFiles(any())).thenReturn(mockRequestFolders);
+        when(mockFile.listFiles(any())).thenReturn(mockItemZips);
+        when(mockFile.getPath()).thenReturn("/mock/path/Case123.zip");
+
+        // Act
+        fileTransportService.uploadItemsJob(null);
 
         // Assert
-        verify(mockLogger).info("TestProcess exited with code 0");
+        verify(ssservice, times(2)).uploadS3File(anyString(), anyString(), anyString(), eq(goldKmsKey));
     }
 }
