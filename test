@@ -1,59 +1,129 @@
 package FINRA.Apps.eDiscovery.service;
 
+import FINRA.Apps.eDiscovery.config.PropertyReader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import javax.naming.Context;
+import javax.naming.NamingEnumeration;
+import javax.naming.NamingException;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.SearchControls;
+import javax.naming.directory.SearchResult;
+import javax.naming.ldap.LdapContext;
+
+import java.util.Hashtable;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
-class EncryptionServiceTest {
+@ExtendWith(MockitoExtension.class)
+class LapServiceImplTest {
 
-    private EncryptionService encryptionService;
+    @Mock
+    private PropertyReader propertyReader;
+
+    @Mock
+    private LdapContext ldapContext;
+
+    @Mock
+    private NamingEnumeration<SearchResult> namingEnumeration;
+
+    @Mock
+    private SearchResult searchResult;
+
+    @Mock
+    private Attributes attributes;
+
+    @InjectMocks
+    private LapServiceImpl lapService;
 
     @BeforeEach
     void setUp() {
-        encryptionService = new EncryptionService();
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    void testEncryptString() {
-        String plainText = "TestString123";
-        String password = "MySecurePassword";
+    void testFindEmailAddressByEmployeeName_Success() throws Exception {
+        // Arrange
+        String employeeName = "John Doe";
+        String ldapSearchBase = "ou=users,dc=example,dc=com";
+        String expectedEmail = "john.doe@example.com";
 
-        String encryptedString = encryptionService.encryptString(plainText, password);
+        // Mock PropertyReader responses
+        when(propertyReader.getLdapSearchBase()).thenReturn(ldapSearchBase);
+        when(propertyReader.getLdapServer()).thenReturn("ldap://example.com");
 
-        assertNotNull(encryptedString, "Encrypted string should not be null");
-        assertNotEquals(plainText, encryptedString, "Encrypted string should not match plain text");
+        // Mock LDAP context creation
+        when(ldapContext.search(eq(ldapSearchBase), any(String.class), any(SearchControls.class)))
+                .thenReturn(namingEnumeration);
+
+        when(namingEnumeration.hasMoreElements()).thenReturn(true, false); // Return one result
+        when(namingEnumeration.nextElement()).thenReturn(searchResult);
+
+        // Mock search result and attributes
+        when(searchResult.getAttributes()).thenReturn(attributes);
+        when(attributes.get("mail")).thenReturn(() -> expectedEmail);
+
+        // Act
+        String actualEmail = lapService.findEmailAddressByEmployeeName(employeeName);
+
+        // Assert
+        assertNotNull(actualEmail);
+        assertEquals(expectedEmail, actualEmail);
+
+        // Verify
+        verify(propertyReader, times(1)).getLdapSearchBase();
+        verify(ldapContext, times(1)).search(eq(ldapSearchBase), any(String.class), any(SearchControls.class));
     }
 
     @Test
-    void testDecryptString() {
-        String plainText = "TestString123";
-        String password = "MySecurePassword";
+    void testFindEmailAddressByEmployeeName_NoResults() throws Exception {
+        // Arrange
+        String employeeName = "John Doe";
+        String ldapSearchBase = "ou=users,dc=example,dc=com";
 
-        // First, encrypt the plain text
-        String encryptedString = encryptionService.encryptString(plainText, password);
+        when(propertyReader.getLdapSearchBase()).thenReturn(ldapSearchBase);
+        when(ldapContext.search(eq(ldapSearchBase), any(String.class), any(SearchControls.class)))
+                .thenReturn(namingEnumeration);
 
-        // Decrypt the encrypted string
-        String decryptedString = encryptionService.decryptString(encryptedString, password);
+        // No results returned
+        when(namingEnumeration.hasMoreElements()).thenReturn(false);
 
-        assertNotNull(decryptedString, "Decrypted string should not be null");
-        assertEquals(plainText, decryptedString, "Decrypted string should match the original plain text");
+        // Act
+        String actualEmail = lapService.findEmailAddressByEmployeeName(employeeName);
+
+        // Assert
+        assertNull(actualEmail);
+
+        // Verify
+        verify(propertyReader, times(1)).getLdapSearchBase();
+        verify(ldapContext, times(1)).search(eq(ldapSearchBase), any(String.class), any(SearchControls.class));
     }
 
     @Test
-    void testEncryptionAndDecryptionWithWrongPassword() {
-        String plainText = "TestString123";
-        String correctPassword = "MySecurePassword";
-        String wrongPassword = "WrongPassword";
+    void testFindEmailAddressByEmployeeName_ExceptionThrown() throws Exception {
+        // Arrange
+        String employeeName = "John Doe";
+        String ldapSearchBase = "ou=users,dc=example,dc=com";
 
-        // Encrypt with the correct password
-        String encryptedString = encryptionService.encryptString(plainText, correctPassword);
+        when(propertyReader.getLdapSearchBase()).thenReturn(ldapSearchBase);
+        when(ldapContext.search(eq(ldapSearchBase), any(String.class), any(SearchControls.class)))
+                .thenThrow(NamingException.class);
 
-        // Attempt to decrypt with the wrong password
-        Exception exception = assertThrows(Exception.class, () -> {
-            encryptionService.decryptString(encryptedString, wrongPassword);
-        });
+        // Act & Assert
+        assertThrows(Exception.class, () -> lapService.findEmailAddressByEmployeeName(employeeName));
 
-        assertNotNull(exception, "An exception should be thrown when decrypting with the wrong password");
+        // Verify
+        verify(propertyReader, times(1)).getLdapSearchBase();
+        verify(ldapContext, times(1)).search(eq(ldapSearchBase), any(String.class), any(SearchControls.class));
     }
 }
