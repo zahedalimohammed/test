@@ -1,129 +1,59 @@
-package com.example.service;
+package FINRA.Apps.eDiscovery.service;
 
-import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
 
-import javax.inject.Inject;
-import java.io.File;
-import java.io.FileFilter;
+import static org.junit.jupiter.api.Assertions.*;
 
-import static org.mockito.Mockito.*;
+class EncryptionServiceTest {
 
-class ItemZipServiceTest {
-
-    @Mock
-    private RequestManagerDownloadConfiguration configuration;
-
-    @Mock
-    private Logger logger;
-
-    @InjectMocks
-    private ItemZipService itemZipService;
+    private EncryptionService encryptionService;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        encryptionService = new EncryptionService();
     }
 
     @Test
-    void testZipItems_withValidJob() {
-        // Mock Job and its dependencies
-        Job job = mock(Job.class);
-        RequestManagerCase requestManagerCase = mock(RequestManagerCase.class);
-        when(job.getRequestManagerCase()).thenReturn(requestManagerCase);
-        when(requestManagerCase.getCaseId()).thenReturn("12345");
+    void testEncryptString() {
+        String plainText = "TestString123";
+        String password = "MySecurePassword";
 
-        // Mock configuration paths
-        when(configuration.getCpuEnforcementGoldPath()).thenReturn("/mock/path");
+        String encryptedString = encryptionService.encryptString(plainText, password);
 
-        // Mock directory structure
-        File caseFolder = mock(File.class);
-        File requestFolder = mock(File.class);
-        File itemFolder = mock(File.class);
-
-        // Set up file list mocks
-        when(caseFolder.listFiles((FileFilter) DirectoryFileFilter.DIRECTORY)).thenReturn(new File[]{requestFolder});
-        when(requestFolder.listFiles((FileFilter) DirectoryFileFilter.DIRECTORY)).thenReturn(new File[]{itemFolder});
-        when(requestFolder.getPath()).thenReturn("/mock/path/requestFolder");
-        when(itemFolder.getPath()).thenReturn("/mock/path/requestFolder/itemFolder");
-
-        // Spy on zipFolder to isolate logic
-        ItemZipService spyService = spy(itemZipService);
-        doReturn(true).when(spyService).zipFolder(anyString(), anyString());
-
-        // Execute the test
-        spyService.zipItems(job);
-
-        // Verify interactions
-        verify(configuration, times(1)).getCpuEnforcementGoldPath();
-        verify(spyService, times(1)).zipFolder(
-                eq("/mock/path/requestFolder/itemFolder"),
-                eq("/mock/path/requestFolder/itemFolder/*")
-        );
+        assertNotNull(encryptedString, "Encrypted string should not be null");
+        assertNotEquals(plainText, encryptedString, "Encrypted string should not match plain text");
     }
 
     @Test
-    void testZipItems_withNullJob() {
-        // Call zipItems with a null job
-        itemZipService.zipItems(null);
+    void testDecryptString() {
+        String plainText = "TestString123";
+        String password = "MySecurePassword";
 
-        // Verify no interactions with dependencies
-        verifyNoInteractions(configuration);
+        // First, encrypt the plain text
+        String encryptedString = encryptionService.encryptString(plainText, password);
+
+        // Decrypt the encrypted string
+        String decryptedString = encryptionService.decryptString(encryptedString, password);
+
+        assertNotNull(decryptedString, "Decrypted string should not be null");
+        assertEquals(plainText, decryptedString, "Decrypted string should match the original plain text");
     }
 
     @Test
-    void testZipFolder_successfulZip() throws Exception {
-        // Mock configuration path
-        when(configuration.getSevenZipPath()).thenReturn("/mock/sevenZipPath");
+    void testEncryptionAndDecryptionWithWrongPassword() {
+        String plainText = "TestString123";
+        String correctPassword = "MySecurePassword";
+        String wrongPassword = "WrongPassword";
 
-        // Mock successful command execution
-        Command commandMock = mock(Command.class);
-        when(Command.runCommand(anyList(), eq("Zip Item"))).thenReturn(0);
+        // Encrypt with the correct password
+        String encryptedString = encryptionService.encryptString(plainText, correctPassword);
 
-        // Call zipFolder
-        boolean result = itemZipService.zipFolder("/mock/destination", "/mock/source");
+        // Attempt to decrypt with the wrong password
+        Exception exception = assertThrows(Exception.class, () -> {
+            encryptionService.decryptString(encryptedString, wrongPassword);
+        });
 
-        // Assert result and verify logger
-        assertTrue(result);
-        verify(logger, never()).error(anyString(), any(Throwable.class));
-    }
-
-    @Test
-    void testZipFolder_failedZip() throws Exception {
-        // Mock configuration path
-        when(configuration.getSevenZipPath()).thenReturn("/mock/sevenZipPath");
-
-        // Mock failed command execution
-        Command commandMock = mock(Command.class);
-        when(Command.runCommand(anyList(), eq("Zip Item"))).thenReturn(1);
-
-        // Call zipFolder
-        boolean result = itemZipService.zipFolder("/mock/destination", "/mock/source");
-
-        // Assert result and verify logger
-        assertFalse(result);
-        verify(logger, times(1)).error(contains("Error zipping Item folder"));
-    }
-
-    @Test
-    void testZipFolder_withException() {
-        // Mock configuration path
-        when(configuration.getSevenZipPath()).thenReturn("/mock/sevenZipPath");
-
-        // Mock exception during command execution
-        Command commandMock = mock(Command.class);
-        when(Command.runCommand(anyList(), eq("Zip Item"))).thenThrow(new RuntimeException("Mock Exception"));
-
-        // Call zipFolder
-        boolean result = itemZipService.zipFolder("/mock/destination", "/mock/source");
-
-        // Assert result and verify logger
-        assertFalse(result);
-        verify(logger, times(1)).error(contains("Error zipping Item folder"), any(RuntimeException.class));
+        assertNotNull(exception, "An exception should be thrown when decrypting with the wrong password");
     }
 }
